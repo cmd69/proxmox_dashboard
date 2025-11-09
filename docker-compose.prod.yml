@@ -12,6 +12,9 @@ services:
       - .env
     ports:
       - "3000:3000"
+    volumes:
+      # Volumen persistente para datos del servidor
+      - dashboard_data:/app/data
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
@@ -24,6 +27,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+volumes:
+  dashboard_data:
 
 networks:
   demo:

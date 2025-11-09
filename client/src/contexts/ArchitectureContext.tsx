@@ -1,10 +1,12 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { ArchitectureData, architectureData as defaultArchitectureData } from '@/data/architecture';
+import { storageService } from '@/services/storageService';
 
 interface ArchitectureContextType {
   architecture: ArchitectureData;
   updateArchitecture: (data: ArchitectureData) => void;
   resetArchitecture: () => void;
+  isLoading: boolean;
 }
 
 const ArchitectureContext = createContext<ArchitectureContextType | undefined>(undefined);
@@ -12,38 +14,84 @@ const ArchitectureContext = createContext<ArchitectureContextType | undefined>(u
 const STORAGE_KEY = 'architecture_config';
 
 export function ArchitectureProvider({ children }: { children: ReactNode }) {
-  const [architecture, setArchitecture] = useState<ArchitectureData>(() => {
-    // Load from localStorage on init
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error('Failed to load architecture config:', error);
-    }
-    return defaultArchitectureData;
-  });
+  const [architecture, setArchitecture] = useState<ArchitectureData>(defaultArchitectureData);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Save to localStorage whenever architecture changes
+  // Load architecture from storage on mount
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(architecture));
-    } catch (error) {
-      console.error('Failed to save architecture config:', error);
+    let isMounted = true;
+
+    async function loadArchitecture() {
+      try {
+        const stored = await storageService.get<ArchitectureData>(STORAGE_KEY, defaultArchitectureData);
+        
+        if (!isMounted) return;
+
+        // Ensure services array exists (migration from old format)
+        if (!stored.services) {
+          stored.services = defaultArchitectureData.services;
+        }
+
+        // Validate and merge with defaults to ensure all required fields exist
+        const merged: ArchitectureData = {
+          services: stored.services || defaultArchitectureData.services,
+          vms: stored.vms || defaultArchitectureData.vms,
+          proxmoxHost: {
+            ...defaultArchitectureData.proxmoxHost,
+            ...(stored.proxmoxHost || {}),
+          },
+        };
+
+        setArchitecture(merged);
+      } catch (error) {
+        console.error('Failed to load architecture config:', error);
+        if (isMounted) {
+          setArchitecture(defaultArchitectureData);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     }
-  }, [architecture]);
 
-  const updateArchitecture = (data: ArchitectureData) => {
+    loadArchitecture();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Save to storage whenever architecture changes (debounced)
+  useEffect(() => {
+    if (isLoading) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        await storageService.set(STORAGE_KEY, architecture);
+      } catch (error) {
+        console.error('Failed to save architecture config:', error);
+      }
+    }, 300); // Debounce saves by 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [architecture, isLoading]);
+
+  const updateArchitecture = useCallback((data: ArchitectureData) => {
     setArchitecture(data);
-  };
+  }, []);
 
-  const resetArchitecture = () => {
+  const resetArchitecture = useCallback(async () => {
     setArchitecture(defaultArchitectureData);
-  };
+    try {
+      await storageService.set(STORAGE_KEY, defaultArchitectureData);
+    } catch (error) {
+      console.error('Failed to reset architecture config:', error);
+    }
+  }, []);
 
   return (
-    <ArchitectureContext.Provider value={{ architecture, updateArchitecture, resetArchitecture }}>
+    <ArchitectureContext.Provider value={{ architecture, updateArchitecture, resetArchitecture, isLoading }}>
       {children}
     </ArchitectureContext.Provider>
   );

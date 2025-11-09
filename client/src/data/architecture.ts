@@ -1,3 +1,9 @@
+export interface Service {
+  id: string;
+  name: string;
+  imageUrl?: string;
+}
+
 export interface VM {
   id: string;
   name: string;
@@ -14,13 +20,18 @@ export interface VM {
     machineType: string;
   };
   specialHardware?: string[];
-  services: string[];
+  services: string[]; // IDs de servicios disponibles para usar
+  software?: string[]; // Tecnologías y herramientas del sistema
   nfsMounts?: string[];
-  ports?: string[];
+  ports?: {
+    exposed?: string[];
+    internal?: string[];
+  };
   color: string;
 }
 
 export interface ArchitectureData {
+  services: Service[];
   vms: VM[];
   proxmoxHost: {
     name: string;
@@ -32,6 +43,19 @@ export interface ArchitectureData {
 }
 
 export const architectureData: ArchitectureData = {
+  services: [
+    { id: 'truenas', name: 'TrueNAS', imageUrl: 'https://www.truenas.com/wp-content/uploads/2021/05/TrueNAS-Logo-Horizontal-Blue.png' },
+    { id: 'nfs-server', name: 'NFS Server', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/NFS_logo.svg/200px-NFS_logo.svg.png' },
+    { id: 'nginx', name: 'Nginx', imageUrl: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/nginx-proxy-manager.webp' },
+    { id: 'portainer', name: 'Portainer', imageUrl: 'https://repository-images.githubusercontent.com/725794693/3b812728-09ec-4db5-b03b-b9f48cc439e3' },
+    { id: 'nextcloud', name: 'Nextcloud', imageUrl: 'https://nextcloud.com/media/nextcloud-logo.png' },
+    { id: 'pulse', name: 'Pulse', imageUrl: 'https://avatars.githubusercontent.com/u/8825017?s=48&v=4' },
+    { id: 'jenkins', name: 'Jenkins', imageUrl: 'https://www.jenkins.io/images/logos/jenkins/jenkins.svg' },
+    { id: 'jellyfin', name: 'Jellyfin', imageUrl: 'https://www.dockhunt.com/_next/image?url=https%3A%2F%2Fdockhunt-images.nyc3.cdn.digitaloceanspaces.com%2F4b054cbd-4ede-4f5e-8192-b1af71698ea0&w=256&q=75' },
+    { id: 'ollama', name: 'Ollama', imageUrl: 'https://ollama.ai/public/ollama.png' },
+    { id: 'openwebui', name: 'OpenWebUI', imageUrl: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/open-webui.png' },
+    { id: 'docker-registry', name: 'Docker Registry', imageUrl: 'https://www.docker.com/wp-content/uploads/2022/03/vertical-logo-monochromatic.svg' },
+  ],
   proxmoxHost: {
     name: 'Proxmox VE',
     cpu: 4,
@@ -56,12 +80,12 @@ export const architectureData: ArchitectureData = {
         machineType: 'Standard',
       },
       specialHardware: ['HDD Passthrough (raw disk access)'],
-      services: ['NFS Server', 'Storage Pools', 'ZFS Snapshots'],
+      services: ['truenas'],
+      software: ['ZFS Backup', 'NFSv4 Protocol',],
       nfsMounts: [
         '/mnt/nfs/backups (Proxmox host)',
         '/mnt/nfs/media (VM103)',
         '/mnt/nfs/data/$user (VM102)',
-        '/mnt/nfs/jenkins (VM104)',
       ],
       color: '#3B82F6',
     },
@@ -81,17 +105,26 @@ export const architectureData: ArchitectureData = {
         machineType: 'i440fx',
       },
       services: [
+        'nfs-server',
+        'nginx',
+        'portainer',
+        'nextcloud',
+        'pulse',
+        'jenkins',
+        'openwebui',
+      ],
+      software: [
+        'Ubuntu Server',
         'Docker Engine',
-        'Docker Compose v2',
-        'Nginx Reverse Proxy',
-        'Jenkins Master',
-        'Portainer',
-        'Production Stacks A/B/C',
-        'Nextcloud',
-        'Pulse Service',
+        'Docker Compose',
+        'Reverse Proxy',
+        'NFS Client',
       ],
       nfsMounts: ['/mnt/nfs/data/$user (Nextcloud user data)'],
-      ports: ['80 (HTTP)', '443 (HTTPS)', '8080 (Portainer)', '8081 (Jenkins)'],
+      ports: {
+        exposed: ['80 (HTTP)', '443 (HTTPS)'],
+        internal: ['8080 (Portainer)', '8081 (Jenkins)'],
+      },
       color: '#10B981',
     },
     {
@@ -115,15 +148,21 @@ export const architectureData: ArchitectureData = {
         'Requires OVMF/UEFI BIOS',
       ],
       services: [
-        'Docker Engine',
-        'Docker Compose v2',
+        'nfs-server',
+        'jellyfin',
+        'ollama',
+      ],
+      software: [
+        'GPU Passthrough',
+        'NVIDIA Drivers',
         'NVIDIA Container Toolkit',
-        'Jellyfin (Media Server with GPU transcoding)',
-        'Ollama (LLM Inference with GPU)',
-        'Development Stack (limited resources)',
+        'CUDA',
+        'NFS Client',
       ],
       nfsMounts: ['/mnt/nfs/media (Jellyfin media library)'],
-      ports: ['8096 (Jellyfin)', '11434 (Ollama)'],
+      ports: {
+        internal: ['8096 (Jellyfin)', '11434 (Ollama)'],
+      },
       color: '#F59E0B',
     },
     {
@@ -142,17 +181,21 @@ export const architectureData: ArchitectureData = {
         machineType: 'i440fx',
       },
       services: [
+        'docker-registry',
+      ],
+      software: [
         'Docker Engine',
-        'Docker Compose v2',
+        'Docker Compose',
         'Jenkins Agent',
-        'Docker Registry (optional)',
-        'Development/Testing Stacks',
+        'Git',
       ],
       nfsMounts: [
         '/mnt/nfs/data (shared artifacts)',
         '/mnt/nfs/jenkins (workspace sync)',
       ],
-      ports: ['3000+ (Development apps)', '5000 (Docker Registry)'],
+      ports: {
+        internal: ['3000+ (Development apps)', '5000 (Docker Registry)'],
+      },
       color: '#8B5CF6',
     },
   ],

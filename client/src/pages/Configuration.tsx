@@ -133,9 +133,12 @@ export default function Configuration() {
 
         {/* VMs Overview */}
         <Card className="p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BookOpen className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('configGuide.vms.title')}</h2>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('configGuide.vms.title')}</h2>
+            </div>
+            <Settings2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {architecture.vms.map((vm) => (
@@ -148,11 +151,47 @@ export default function Configuration() {
                   <h3 className="font-bold text-gray-900 dark:text-white">{vm.name}</h3>
                   <span className="text-xs text-gray-600 dark:text-gray-400">VM{vm.vmId}</span>
                 </div>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{vm.role}</p>
-                <div className="flex gap-4 text-xs text-gray-600 dark:text-gray-400">
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{vm.role}</p>
+                
+                {/* Hardware */}
+                <div className="flex gap-4 text-xs text-gray-600 dark:text-gray-400 mb-3 pb-3 border-b border-gray-200 dark:border-gray-700">
                   <span>{vm.hardware.cpu} {t('diagram.cpu')}</span>
                   <span>{vm.hardware.ram} GB {t('diagram.ram')}</span>
                   <span>{vm.hardware.disk} GB</span>
+                </div>
+
+                {/* Aplicaciones */}
+                <div className="mb-3">
+                  <h4 className="text-xs font-semibold text-green-700 dark:text-green-400 mb-2">{t('vm.services')}</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {vm.services.slice(0, 3).map((service, idx) => (
+                      <span key={idx} className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded">
+                        {service}
+                      </span>
+                    ))}
+                    {vm.services.length > 3 && (
+                      <span className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded">
+                        +{vm.services.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tecnologías */}
+                <div>
+                  <h4 className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">{t('vm.software')}</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {(vm.software || []).slice(0, 3).map((tech, idx) => (
+                      <span key={idx} className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 rounded border border-slate-300 dark:border-slate-600">
+                        {tech}
+                      </span>
+                    ))}
+                    {(vm.software || []).length > 3 && (
+                      <span className="text-xs px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 rounded border border-slate-300 dark:border-slate-600">
+                        +{(vm.software || []).length - 3}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

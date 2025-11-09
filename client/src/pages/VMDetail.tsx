@@ -147,20 +147,55 @@ export default function VMDetail() {
           )}
         </Card>
 
-        {/* Services */}
-        <Card className="p-6 bg-gradient-to-br from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 border-2 border-green-200 dark:border-green-700/50">
-          <h2 className="text-xl font-bold text-green-900 dark:text-green-300 mb-4 flex items-center gap-2">
-            <Server className="w-5 h-5" />
-            {t('vm.services')}
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {vm.services.map((service, idx) => (
-              <Badge key={idx} className="bg-green-600 hover:bg-green-700 text-white border-green-700">
-                {service}
-              </Badge>
-            ))}
-          </div>
-        </Card>
+        {/* Services - Apps Disponibles */}
+        {vm.services && vm.services.length > 0 && (
+          <Card className="p-6 bg-gradient-to-br from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 border-2 border-green-200 dark:border-green-700/50">
+            <h2 className="text-xl font-bold text-green-900 dark:text-green-300 mb-4 flex items-center gap-1">
+              <Server className="w-5 h-5" />
+              {t('vm.services')}
+            </h2>
+            <p className="text-sm text-green-800 dark:text-green-300 mb-3">{t('vm.servicesDesc')}</p>
+            <div className="flex flex-wrap gap-1">
+              {vm.services.map((serviceId, idx) => {
+                const service = architecture.services.find(s => s.id === serviceId);
+                if (!service) return null;
+                return (
+                  <Badge key={idx} className="bg-green-600 hover:bg-green-700 text-white border-green-700 text-sm px-3 py-1 flex items-center gap-1.5">
+                    {service.imageUrl && (
+                      <img
+                        src={service.imageUrl}
+                        alt={service.name}
+                        className="h-4 w-4 object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                    {service.name}
+                  </Badge>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Software - Tecnologías */}
+        {vm.software && vm.software.length > 0 && (
+          <Card className="p-6 bg-gradient-to-br from-slate-50 to-gray-100 dark:from-slate-900/20 dark:to-gray-900/20 border-2 border-slate-300 dark:border-slate-700/50">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-300 mb-4 flex items-center gap-1">
+              <Zap className="w-5 h-5" />
+              {t('vm.software')}
+            </h2>
+            <p className="text-sm text-slate-700 dark:text-slate-400 mb-3">{t('vm.softwareDesc')}</p>
+            <div className="flex flex-wrap gap-1">
+              {vm.software.map((tech, idx) => (
+                <Badge key={idx} variant="outline" className="border-slate-400 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm px-2 py-1">
+                  {tech}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* NFS Mounts */}
         {vm.nfsMounts && vm.nfsMounts.length > 0 && (
@@ -181,17 +216,42 @@ export default function VMDetail() {
         )}
 
         {/* Ports */}
-        {vm.ports && vm.ports.length > 0 && (
-          <Card className="p-6 bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border-2 border-emerald-200 dark:border-emerald-700/50">
-            <h2 className="text-xl font-bold text-emerald-900 dark:text-emerald-300 mb-4">{t('vm.ports')}</h2>
-            <div className="space-y-2">
-              {vm.ports.map((port, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 bg-gradient-to-r from-green-100 to-emerald-100 dark:from-green-900/30 dark:to-emerald-900/30 rounded-lg border-l-4 border-green-500 dark:border-green-400">
-                  <div className="text-green-600 dark:text-green-300 mt-1 font-bold text-lg">◆</div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 font-mono">{port}</p>
+        {vm.ports && ((vm.ports.exposed && vm.ports.exposed.length > 0) || (vm.ports.internal && vm.ports.internal.length > 0)) && (
+          <Card className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-2 border-cyan-200 dark:border-cyan-700/50">
+            <h2 className="text-xl font-bold text-cyan-900 dark:text-cyan-300 mb-4 flex items-center gap-1">
+              <Network className="w-5 h-5" />
+              {t('vm.ports')}
+            </h2>
+            
+            {/* Exposed Ports */}
+            {vm.ports.exposed && vm.ports.exposed.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-cyan-700 dark:text-cyan-400 mb-2">{t('vm.portsExposed')}</h3>
+                <div className="space-y-2">
+                  {vm.ports.exposed.map((port, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-gradient-to-r from-cyan-100 to-blue-100 dark:from-cyan-900/30 dark:to-blue-900/30 rounded-lg border-l-4 border-cyan-500 dark:border-cyan-400">
+                      <div className="text-cyan-600 dark:text-cyan-300 mt-1 font-bold text-lg">🌐</div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 font-mono">{port}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* Internal Ports */}
+            {vm.ports.internal && vm.ports.internal.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-cyan-700 dark:text-cyan-400 mb-2">{t('vm.portsInternal')}</h3>
+                <div className="space-y-2">
+                  {vm.ports.internal.map((port, idx) => (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg border-l-4 border-blue-500 dark:border-blue-400">
+                      <div className="text-blue-600 dark:text-blue-300 mt-1 font-bold text-lg">🔒</div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 font-mono">{port}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
