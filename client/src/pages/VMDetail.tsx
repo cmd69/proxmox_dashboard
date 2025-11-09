@@ -155,17 +155,17 @@ export default function VMDetail() {
               {t('vm.services')}
             </h2>
             <p className="text-sm text-green-800 dark:text-green-300 mb-3">{t('vm.servicesDesc')}</p>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap gap-2">
               {vm.services.map((serviceId, idx) => {
                 const service = architecture.services.find(s => s.id === serviceId);
                 if (!service) return null;
                 return (
-                  <Badge key={idx} className="bg-green-600 hover:bg-green-700 text-white border-green-700 text-sm px-3 py-1 flex items-center gap-1.5">
+                  <Badge key={idx} className="bg-slate-600 hover:bg-slate-700 text-white border-slate-700 text-base px-4 py-2 flex items-center gap-2">
                     {service.imageUrl && (
                       <img
                         src={service.imageUrl}
                         alt={service.name}
-                        className="h-4 w-4 object-contain"
+                        className="h-5 w-5 object-contain"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}

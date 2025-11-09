@@ -24,17 +24,19 @@ export function Header() {
 
   return (
     <header className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             {APP_LOGO && (
-              <img
-                src={APP_LOGO}
-                alt={APP_TITLE}
-                className="h-8 object-contain"
-              />
+              <div className="bg-white p-1.5 rounded">
+                <img
+                  src={APP_LOGO}
+                  alt={APP_TITLE}
+                  className="h-10 object-contain"
+                />
+              </div>
             )}
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white hidden sm:block">{APP_TITLE}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white hidden sm:block">{APP_TITLE}</h1>
           </div>
         </Link>
 

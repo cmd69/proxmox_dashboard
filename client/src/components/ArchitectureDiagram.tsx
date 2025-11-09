@@ -1476,10 +1476,21 @@ export const ArchitectureDiagram: React.FC = () => {
   // Handle new connections
   const onConnect = useCallback(
     async (connection: any) => {
+      // Determine edge type based on handle positions
+      // If connecting from right to left, use 'step' for more direct routing
+      // Otherwise use 'smoothstep' for smoother curves
+      const sourceHandleId = connection.sourceHandle || '';
+      const targetHandleId = connection.targetHandle || '';
+      const isRightToLeft = (sourceHandleId.includes('right') || sourceHandleId === 'right') && 
+                           (targetHandleId.includes('left') || targetHandleId === 'left-target');
+      
       const newEdge: Edge = {
         id: `custom-${connection.source}-${connection.target}-${Date.now()}`,
         source: connection.source,
         target: connection.target,
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+        type: isRightToLeft ? 'step' : 'smoothstep',
         animated: true,
         label: t('diagram.customConnection'),
         markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
