@@ -1,15 +1,15 @@
 export interface ConfigurationSection {
   id: string;
-  title: string;
-  description: string;
-  content: string;
+  titleKey: string; // Translation key for title
+  descriptionKey: string; // Translation key for description
+  contentKey: string; // Translation key for content
   subsections?: ConfigurationSubsection[];
 }
 
 export interface ConfigurationSubsection {
   id: string;
-  title: string;
-  content: string;
+  titleKey: string; // Translation key for title
+  contentKey: string; // Translation key for content
   code?: string;
   codeLanguage?: string;
 }
@@ -17,37 +17,37 @@ export interface ConfigurationSubsection {
 export const configurationData: ConfigurationSection[] = [
   {
     id: 'physical-infrastructure',
-    title: 'Infraestructura Física',
-    description: 'Especificaciones del hardware físico del servidor Proxmox',
-    content: 'El servidor Proxmox cuenta con 4 núcleos físicos, 32GB de RAM, una GPU NVIDIA GTX 1060 de 6GB con passthrough, y almacenamiento HDD con SSD para discos del sistema.',
+    titleKey: 'techGuide.physical.title',
+    descriptionKey: 'techGuide.physical.description',
+    contentKey: 'techGuide.physical.content',
     subsections: [
       {
         id: 'cpu-ram',
-        title: 'CPU y RAM',
-        content: 'El servidor dispone de 4 núcleos físicos y 32GB de memoria RAM física.',
+        titleKey: 'techGuide.physical.cpuRam.title',
+        contentKey: 'techGuide.physical.cpuRam.content',
       },
       {
         id: 'gpu-storage',
-        title: 'GPU y Almacenamiento',
-        content: 'NVIDIA GTX 1060 6GB disponible para passthrough a VM103. Almacenamiento con HDD array (passthrough a TrueNAS) y SSD para discos del sistema de las VMs.',
+        titleKey: 'techGuide.physical.gpuStorage.title',
+        contentKey: 'techGuide.physical.gpuStorage.content',
       },
       {
         id: 'resource-allocation',
-        title: 'Estrategia de Asignación de Recursos',
-        content: 'Se utiliza overcommit controlado: 8 vCPU asignados en 4 núcleos (2:1 ratio, normal en virtualización) y 38GB RAM asignados en 32GB físicos (6GB overcommit, aceptable porque TrueNAS y VM103 raramente usan el máximo).',
+        titleKey: 'techGuide.physical.resourceAllocation.title',
+        contentKey: 'techGuide.physical.resourceAllocation.content',
       },
     ],
   },
   {
     id: 'vm-configuration',
-    title: 'Configuración de Máquinas Virtuales',
-    description: 'Detalles de configuración de cada máquina virtual',
-    content: 'Cuatro máquinas virtuales principales: TrueNAS (almacenamiento), DockerHost (producción), GPUProduction (GPU), y StagingAgent (desarrollo/CI/CD).',
+    titleKey: 'techGuide.vms.title',
+    descriptionKey: 'techGuide.vms.description',
+    contentKey: 'techGuide.vms.content',
     subsections: [
       {
         id: 'vm101-truenas',
-        title: 'VM101 - TrueNAS (Storage Server)',
-        content: 'Servidor de almacenamiento NFS que proporciona exportaciones para todas las VMs. Configuración: 2 Cores, 16GB RAM, UEFI BIOS, Passthrough HDD, QEMU Guest Agent habilitado.',
+        titleKey: 'techGuide.vms.vm101.title',
+        contentKey: 'techGuide.vms.vm101.content',
         code: `VM ID: 101
 CPU: 2 cores
 RAM: 16GB
@@ -68,8 +68,8 @@ NFS Exports:
       },
       {
         id: 'vm102-dockerhost',
-        title: 'VM102 - DockerHost (Production Server)',
-        content: 'Entorno de producción principal con Docker, Nginx Reverse Proxy y Jenkins Master. Criticidad: ALTA - sin downtime permitido.',
+        titleKey: 'techGuide.vms.vm102.title',
+        contentKey: 'techGuide.vms.vm102.content',
         code: `VM ID: 102
 CPU: 2 cores
 RAM: 6GB
@@ -105,8 +105,8 @@ networks:
       },
       {
         id: 'vm103-gpuproduction',
-        title: 'VM103 - GPUProduction (GPU Production Server)',
-        content: 'Servicios acelerados por GPU para media y AI workloads. CRÍTICO - sin downtime permitido. Requiere configuración especial para GPU passthrough.',
+        titleKey: 'techGuide.vms.vm103.title',
+        contentKey: 'techGuide.vms.vm103.content',
         code: `VM ID: 103
 CPU: 2 cores
 RAM: 10GB
@@ -141,8 +141,8 @@ Storage Mounts:
       },
       {
         id: 'vm104-stagingagent',
-        title: 'VM104 - StagingAgent (Development & CI/CD Agent)',
-        content: 'Agente de Jenkins y entorno de desarrollo/testing. Criticidad: MEDIA - puede ser reiniciado sin afectar producción.',
+        titleKey: 'techGuide.vms.vm104.title',
+        contentKey: 'techGuide.vms.vm104.content',
         code: `VM ID: 104
 CPU: 2 cores
 RAM: 6GB
@@ -180,14 +180,14 @@ Storage Mounts:
   },
   {
     id: 'installation-setup',
-    title: 'Instalación y Configuración',
-    description: 'Guías paso a paso para instalar y configurar cada componente',
-    content: 'Procedimientos estándar para configurar Ubuntu VMs, Docker, NFS, GPU y Jenkins.',
+    titleKey: 'techGuide.installation.title',
+    descriptionKey: 'techGuide.installation.description',
+    contentKey: 'techGuide.installation.content',
     subsections: [
       {
         id: 'ubuntu-setup',
-        title: 'Configuración Estándar de Ubuntu VM',
-        content: 'Pasos para configurar una nueva VM Ubuntu con Docker, NFS y herramientas útiles.',
+        titleKey: 'techGuide.installation.ubuntu.title',
+        contentKey: 'techGuide.installation.ubuntu.content',
         code: `#!/bin/bash
 # Execute on each new Ubuntu VM
 
@@ -242,8 +242,8 @@ echo "⚠️  Remember to logout and login again for Docker group membership"`,
       },
       {
         id: 'gpu-setup',
-        title: 'Configuración de GPU (VM103)',
-        content: 'Pasos adicionales para configurar GPU en VM103 después de la configuración base.',
+        titleKey: 'techGuide.installation.gpu.title',
+        contentKey: 'techGuide.installation.gpu.content',
         code: `#!/bin/bash
 # Additional setup for VM103 after base setup
 
@@ -273,8 +273,8 @@ echo "✓ GPU setup completed"`,
       },
       {
         id: 'jenkins-master-setup',
-        title: 'Configuración de Jenkins Master (VM102)',
-        content: 'Instalación de Jenkins Master como contenedor Docker en VM102.',
+        titleKey: 'techGuide.installation.jenkinsMaster.title',
+        contentKey: 'techGuide.installation.jenkinsMaster.content',
         code: `#!/bin/bash
 # Install Jenkins Master as Docker container on VM102
 
@@ -303,8 +303,8 @@ echo "⚠️  Access at http://VM102_IP:8080 and complete setup wizard"`,
       },
       {
         id: 'jenkins-agent-setup',
-        title: 'Configuración de Jenkins Agent (VM104)',
-        content: 'Configuración de VM104 como agente de Jenkins.',
+        titleKey: 'techGuide.installation.jenkinsAgent.title',
+        contentKey: 'techGuide.installation.jenkinsAgent.content',
         code: `#!/bin/bash
 # Configure VM104 as Jenkins Agent
 
@@ -335,14 +335,14 @@ echo "   - Credentials: jenkins user SSH key"`,
   },
   {
     id: 'backup-strategy',
-    title: 'Estrategia de Backup',
-    description: 'Procedimientos de backup para VMs y datos',
-    content: 'Snapshots de Proxmox, backups de Docker volumes y snapshots de ZFS en TrueNAS.',
+    titleKey: 'techGuide.backup.title',
+    descriptionKey: 'techGuide.backup.description',
+    contentKey: 'techGuide.backup.content',
     subsections: [
       {
         id: 'proxmox-backups',
-        title: 'Backups de Proxmox VMs',
-        content: 'Snapshots y backups de máquinas virtuales críticas.',
+        titleKey: 'techGuide.backup.proxmox.title',
+        contentKey: 'techGuide.backup.proxmox.content',
         code: `# Manual snapshot before major changes
 qm snapshot 120 pre-update-$(date +%Y%m%d)
 qm snapshot 130 pre-update-$(date +%Y%m%d)
@@ -367,8 +367,8 @@ qm rollback 120 pre-update-20241109
       },
       {
         id: 'docker-backups',
-        title: 'Backups de Docker Volumes',
-        content: 'Script automatizado para backup de volúmenes Docker.',
+        titleKey: 'techGuide.backup.docker.title',
+        contentKey: 'techGuide.backup.docker.content',
         code: `#!/bin/bash
 # /usr/local/bin/docker-backup.sh
 
@@ -403,8 +403,8 @@ echo "✓ Backup completed: $BACKUP_DIR"
       },
       {
         id: 'zfs-snapshots',
-        title: 'ZFS Snapshots (TrueNAS)',
-        content: 'Configuración de snapshots automáticos en TrueNAS.',
+        titleKey: 'techGuide.backup.zfs.title',
+        contentKey: 'techGuide.backup.zfs.content',
         code: `# Automated ZFS snapshots (configured in TrueNAS UI):
 - Hourly snapshots: Keep 24 hours
 - Daily snapshots: Keep 7 days
@@ -418,14 +418,14 @@ echo "✓ Backup completed: $BACKUP_DIR"
   },
   {
     id: 'monitoring-maintenance',
-    title: 'Monitoreo y Mantenimiento',
-    description: 'Comandos y procedimientos para monitorear el sistema',
-    content: 'Herramientas y comandos para monitorear Proxmox, Docker, red y GPU.',
+    titleKey: 'techGuide.monitoring.title',
+    descriptionKey: 'techGuide.monitoring.description',
+    contentKey: 'techGuide.monitoring.content',
     subsections: [
       {
         id: 'proxmox-monitoring',
-        title: 'Monitoreo de Proxmox Host',
-        content: 'Comandos para monitorear el estado del hipervisor y VMs.',
+        titleKey: 'techGuide.monitoring.proxmox.title',
+        contentKey: 'techGuide.monitoring.proxmox.content',
         code: `# Check overall resource usage
 pvesh get /nodes/proxmox/status
 
@@ -462,8 +462,8 @@ qm agent 120 network-get-interfaces`,
       },
       {
         id: 'docker-monitoring',
-        title: 'Monitoreo de Docker',
-        content: 'Comandos para monitorear contenedores y recursos Docker.',
+        titleKey: 'techGuide.monitoring.docker.title',
+        contentKey: 'techGuide.monitoring.docker.content',
         code: `# Container status
 docker ps -a
 
@@ -492,8 +492,8 @@ docker volume inspect volume_name`,
       },
       {
         id: 'gpu-monitoring',
-        title: 'Monitoreo de GPU (VM103)',
-        content: 'Comandos para monitorear el estado y uso de GPU.',
+        titleKey: 'techGuide.monitoring.gpu.title',
+        contentKey: 'techGuide.monitoring.gpu.content',
         code: `# Real-time GPU stats
 nvidia-smi
 
@@ -512,8 +512,8 @@ docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi`,
       },
       {
         id: 'network-diagnostics',
-        title: 'Diagnósticos de Red',
-        content: 'Comandos para diagnosticar problemas de conectividad.',
+        titleKey: 'techGuide.monitoring.network.title',
+        contentKey: 'techGuide.monitoring.network.content',
         code: `# From Proxmox host - ping VMs
 ping 192.168.1.X
 
@@ -537,14 +537,14 @@ curl -I https://google.com`,
   },
   {
     id: 'troubleshooting-guide',
-    title: 'Guía de Troubleshooting',
-    description: 'Soluciones para problemas comunes',
-    content: 'Procedimientos para diagnosticar y resolver problemas frecuentes en el sistema.',
+    titleKey: 'techGuide.troubleshooting.title',
+    descriptionKey: 'techGuide.troubleshooting.description',
+    contentKey: 'techGuide.troubleshooting.content',
     subsections: [
       {
         id: 'vm-wont-start',
-        title: 'VM No Inicia',
-        content: 'Pasos para diagnosticar por qué una VM no puede iniciarse.',
+        titleKey: 'techGuide.troubleshooting.vmWontStart.title',
+        contentKey: 'techGuide.troubleshooting.vmWontStart.content',
         code: `# Check VM status
 qm status 150
 
@@ -560,8 +560,8 @@ ps aux | grep qemu | grep 150`,
       },
       {
         id: 'nfs-mount-fails',
-        title: 'Fallo de Montaje NFS',
-        content: 'Diagnóstico y solución de problemas de NFS.',
+        titleKey: 'techGuide.troubleshooting.nfsMountFails.title',
+        contentKey: 'techGuide.troubleshooting.nfsMountFails.content',
         code: `# Check NFS service on TrueNAS
 showmount -e TRUENAS_IP
 
@@ -581,8 +581,8 @@ journalctl -u rpc-statd`,
       },
       {
         id: 'docker-container-wont-start',
-        title: 'Contenedor Docker No Inicia',
-        content: 'Diagnóstico de problemas con contenedores Docker.',
+        titleKey: 'techGuide.troubleshooting.dockerWontStart.title',
+        contentKey: 'techGuide.troubleshooting.dockerWontStart.content',
         code: `# Check container logs
 docker logs container_name
 
@@ -606,8 +606,8 @@ docker compose up -d`,
       },
       {
         id: 'gpu-passthrough-issues',
-        title: 'Problemas de GPU Passthrough (VM103)',
-        content: 'Diagnóstico de problemas con el passthrough de GPU.',
+        titleKey: 'techGuide.troubleshooting.gpuPassthrough.title',
+        contentKey: 'techGuide.troubleshooting.gpuPassthrough.content',
         code: `# On Proxmox host - check IOMMU groups
 find /sys/kernel/iommu_groups/ -type l
 
@@ -640,8 +640,8 @@ dmesg | grep -i nvidia`,
       },
       {
         id: 'jenkins-agent-connection',
-        title: 'Problemas de Conexión de Jenkins Agent',
-        content: 'Diagnóstico de problemas de conexión entre Jenkins Master y Agent.',
+        titleKey: 'techGuide.troubleshooting.jenkinsAgent.title',
+        contentKey: 'techGuide.troubleshooting.jenkinsAgent.content',
         code: `# On VM104 - check if Jenkins user can access Docker
 sudo -u jenkins docker ps
 
@@ -663,8 +663,8 @@ java -version`,
       },
       {
         id: 'out-of-memory',
-        title: 'Falta de Memoria (RAM Overcommit)',
-        content: 'Diagnóstico y solución de problemas de presión de memoria.',
+        titleKey: 'techGuide.troubleshooting.outOfMemory.title',
+        contentKey: 'techGuide.troubleshooting.outOfMemory.content',
         code: `# On Proxmox host - check memory pressure
 free -h
 vmstat 1 10
@@ -687,8 +687,8 @@ qm set 130 --memory 5120  # Reduce from 6GB to 5GB`,
       },
       {
         id: 'disk-space-issues',
-        title: 'Problemas de Espacio en Disco',
-        content: 'Diagnóstico y liberación de espacio en disco.',
+        titleKey: 'techGuide.troubleshooting.diskSpace.title',
+        contentKey: 'techGuide.troubleshooting.diskSpace.content',
         code: `# Check disk usage on Proxmox
 df -h
 
@@ -716,8 +716,8 @@ sudo apt autoremove`,
       },
       {
         id: 'network-connectivity',
-        title: 'Problemas de Conectividad de Red',
-        content: 'Diagnóstico de problemas de red.',
+        titleKey: 'techGuide.troubleshooting.networkConnectivity.title',
+        contentKey: 'techGuide.troubleshooting.networkConnectivity.content',
         code: `# Check if VM can reach gateway
 ping 192.168.1.1
 
@@ -743,8 +743,8 @@ sudo iptables -L -n`,
       },
       {
         id: 'slow-performance',
-        title: 'Rendimiento Lento',
-        content: 'Diagnóstico de problemas de rendimiento.',
+        titleKey: 'techGuide.troubleshooting.slowPerformance.title',
+        contentKey: 'techGuide.troubleshooting.slowPerformance.content',
         code: `# Check CPU usage
 top
 htop
@@ -771,8 +771,8 @@ lsmod | grep virtio`,
       },
       {
         id: 'reverse-proxy-issues',
-        title: 'Problemas con Reverse Proxy',
-        content: 'Diagnóstico de problemas con Nginx reverse proxy.',
+        titleKey: 'techGuide.troubleshooting.reverseProxy.title',
+        contentKey: 'techGuide.troubleshooting.reverseProxy.content',
         code: `# Check Traefik container status
 docker ps | grep traefik
 docker logs traefik
@@ -798,14 +798,14 @@ curl http://localhost:8080/dashboard/`,
   },
   {
     id: 'security-considerations',
-    title: 'Consideraciones de Seguridad',
-    description: 'Configuración de seguridad y hardening',
-    content: 'Mejores prácticas de seguridad para Proxmox, Docker, Jenkins y SSH.',
+    titleKey: 'techGuide.security.title',
+    descriptionKey: 'techGuide.security.description',
+    contentKey: 'techGuide.security.content',
     subsections: [
       {
         id: 'firewall-config',
-        title: 'Configuración de Firewall',
-        content: 'Reglas de firewall para Proxmox y VMs.',
+        titleKey: 'techGuide.security.firewall.title',
+        contentKey: 'techGuide.security.firewall.content',
         code: `# Proxmox Host Level:
 # Allow SSH
 iptables -A INPUT -p tcp --dport 22 -j ACCEPT
@@ -843,8 +843,8 @@ sudo ufw enable`,
       },
       {
         id: 'jenkins-security',
-        title: 'Seguridad de Jenkins',
-        content: 'Mejores prácticas de seguridad para Jenkins.',
+        titleKey: 'techGuide.security.jenkins.title',
+        contentKey: 'techGuide.security.jenkins.content',
         code: `# Jenkins Security Best Practices:
 - Use SSH keys for agent authentication (not passwords)
 - Store secrets in Jenkins Credentials (not in Jenkinsfile)
@@ -877,8 +877,8 @@ pipeline {
       },
       {
         id: 'docker-security',
-        title: 'Seguridad de Docker',
-        content: 'Mejores prácticas de seguridad para Docker.',
+        titleKey: 'techGuide.security.docker.title',
+        contentKey: 'techGuide.security.docker.content',
         code: `# Docker Security Best Practices:
 - Run containers as non-root user where possible
 - Use read-only root filesystems when applicable
@@ -907,8 +907,8 @@ CMD ["node", "server.js"]`,
       },
       {
         id: 'ssh-hardening',
-        title: 'Hardening de SSH',
-        content: 'Configuración segura de SSH en todas las VMs.',
+        titleKey: 'techGuide.security.ssh.title',
+        contentKey: 'techGuide.security.ssh.content',
         code: `# On all Ubuntu VMs:
 
 # Disable root login

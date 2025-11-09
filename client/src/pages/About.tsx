@@ -1,12 +1,32 @@
+import { useMemo } from 'react';
 import { Link } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { ArrowLeft, Server, HardDrive, Zap, Shield, Info } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useArchitecture } from '@/contexts/ArchitectureContext';
 
 export default function About() {
   const { t } = useLanguage();
+  const { architecture } = useArchitecture();
+
+  // Calculate resource allocation dynamically
+  const resourceStats = useMemo(() => {
+    const totalCPU = architecture.vms.reduce((sum, vm) => sum + vm.hardware.cpu, 0);
+    const totalRAM = architecture.vms.reduce((sum, vm) => sum + vm.hardware.ram, 0);
+    const cpuOvercommit = totalCPU / architecture.proxmoxHost.cpu;
+    const ramOvercommit = totalRAM - architecture.proxmoxHost.ram;
+    
+    return {
+      physicalCPU: architecture.proxmoxHost.cpu,
+      physicalRAM: architecture.proxmoxHost.ram,
+      assignedCPU: totalCPU,
+      assignedRAM: totalRAM,
+      cpuRatio: cpuOvercommit.toFixed(1),
+      ramOvercommit: ramOvercommit,
+    };
+  }, [architecture]);
   
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-950 dark:to-slate-900">
@@ -72,11 +92,11 @@ export default function About() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900 dark:to-cyan-900 p-4 rounded-lg border-2 border-blue-300 dark:border-blue-700">
               <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">{t('about.hardware.cpu')}</h3>
-              <p className="text-gray-700 dark:text-gray-300">4 {t('about.hardware.cpuValue')}</p>
+              <p className="text-gray-700 dark:text-gray-300">{resourceStats.physicalCPU} {t('about.hardware.cpuValue')}</p>
             </div>
             <div className="bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 p-4 rounded-lg border-2 border-green-300 dark:border-green-700">
               <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">{t('about.hardware.ram')}</h3>
-              <p className="text-gray-700 dark:text-gray-300">32 {t('about.hardware.ramValue')}</p>
+              <p className="text-gray-700 dark:text-gray-300">{resourceStats.physicalRAM} {t('about.hardware.ramValue')}</p>
             </div>
             <div className="bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900 dark:to-amber-900 p-4 rounded-lg border-2 border-orange-300 dark:border-orange-700">
               <h3 className="font-semibold text-orange-900 dark:text-orange-200 mb-2">{t('about.hardware.gpu')}</h3>
@@ -102,13 +122,13 @@ export default function About() {
             <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
               <p className="font-semibold text-blue-900 dark:text-blue-300 mb-2">{t('about.resources.cpu')}</p>
               <p className="text-sm text-blue-800 dark:text-blue-300">
-                {t('about.resources.cpuDesc')}
+                {t('about.resources.cpuDesc')} <strong>{resourceStats.assignedCPU} vCPU</strong> {t('about.resources.on')} <strong>{resourceStats.physicalCPU}</strong> {t('about.resources.physical')} ({resourceStats.cpuRatio}:1 {t('about.resources.ratio')})
               </p>
             </div>
             <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg">
               <p className="font-semibold text-amber-900 dark:text-amber-300 mb-2">{t('about.resources.ram')}</p>
               <p className="text-sm text-amber-800 dark:text-amber-300">
-                {t('about.resources.ramDesc')}
+                {t('about.resources.ramDesc')} <strong>{resourceStats.assignedRAM} GB</strong> {t('about.resources.on')} <strong>{resourceStats.physicalRAM} GB</strong> {t('about.resources.physical')} ({resourceStats.ramOvercommit > 0 ? '+' : ''}{resourceStats.ramOvercommit} GB {t('about.resources.overcommit')})
               </p>
             </div>
           </div>

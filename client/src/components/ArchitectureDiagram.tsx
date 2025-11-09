@@ -12,7 +12,9 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { architectureData, VM } from '@/data/architecture';
+import { VM } from '@/data/architecture';
+import { useArchitecture } from '@/contexts/ArchitectureContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Link } from 'wouter';
 import { HardDrive, Server, Zap, Database, Cloud } from 'lucide-react';
 
@@ -43,6 +45,7 @@ type NodeData = VMNodeData | ProxmoxNodeData | ClientNodeData | StorageNodeData 
 
 const VMNode: React.FC<{ data: VMNodeData }> = ({ data }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <Link href={`/vm/${data.vm.id}`}>
@@ -103,21 +106,21 @@ const VMNode: React.FC<{ data: VMNodeData }> = ({ data }) => {
               <div className="border-t pt-3 space-y-2 bg-white rounded">
                 <div className="flex gap-4 text-xs">
                   <span className="text-gray-600">
-                    <span className="font-semibold text-gray-900">{data.vm.hardware.cpu}</span> CPU
+                    <span className="font-semibold text-gray-900">{data.vm.hardware.cpu}</span> {t('diagram.cpu')}
                   </span>
                   <span className="text-gray-600">
-                    <span className="font-semibold text-gray-900">{data.vm.hardware.ram}</span>GB
-                    RAM
+                    <span className="font-semibold text-gray-900">{data.vm.hardware.ram}</span>{t('diagram.gb')}
+                    {' '}{t('diagram.ram')}
                   </span>
                 </div>
                 {data.vm.specialHardware && data.vm.specialHardware.length > 0 && (
                   <div className="text-xs text-amber-700 bg-amber-50 p-2 rounded">
-                    <span className="font-semibold">Hardware Especial:</span>
+                    <span className="font-semibold">{t('diagram.specialHardware')}:</span>
                     <br />
                     {data.vm.specialHardware[0]}
                   </div>
                 )}
-                <p className="text-xs text-blue-600 font-semibold">→ Click para más detalles</p>
+                <p className="text-xs text-blue-600 font-semibold">→ {t('diagram.clickDetails')}</p>
               </div>
             )}
           </div>
@@ -129,6 +132,7 @@ const VMNode: React.FC<{ data: VMNodeData }> = ({ data }) => {
 
 const StorageVolumeNode: React.FC<{ data: StorageNodeData }> = ({ data }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div
@@ -146,7 +150,7 @@ const StorageVolumeNode: React.FC<{ data: StorageNodeData }> = ({ data }) => {
           <h3 className="font-bold text-sm text-gray-900 dark:text-white">{data.label}</h3>
           {isHovered && (
             <p className="text-xs text-gray-700 dark:text-gray-300">
-              Almacenamiento compartido NFS
+              {t('diagram.nfsSharedStorage')}
             </p>
           )}
         </div>
@@ -157,6 +161,7 @@ const StorageVolumeNode: React.FC<{ data: StorageNodeData }> = ({ data }) => {
 
 const ProxmoxNode: React.FC<{ data: ProxmoxNodeData }> = ({ data }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div
@@ -176,14 +181,14 @@ const ProxmoxNode: React.FC<{ data: ProxmoxNodeData }> = ({ data }) => {
           </div>
           <div className="flex gap-4 text-xs">
             <span className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">{data.cpu}</span> CPU
+              <span className="font-semibold">{data.cpu}</span> {t('diagram.cpu')}
             </span>
             <span className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">{data.ram}</span>GB RAM
+              <span className="font-semibold">{data.ram}</span>{t('diagram.gb')} {t('diagram.ram')}
             </span>
           </div>
           {isHovered && (
-            <p className="text-xs text-gray-700 dark:text-gray-300">Hipervisor Proxmox VE</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('diagram.proxmoxHypervisor')}</p>
           )}
         </div>
       </Card>
@@ -193,6 +198,7 @@ const ProxmoxNode: React.FC<{ data: ProxmoxNodeData }> = ({ data }) => {
 
 const ClientNode: React.FC<{ data: ClientNodeData }> = ({ data }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div
@@ -209,7 +215,7 @@ const ClientNode: React.FC<{ data: ClientNodeData }> = ({ data }) => {
           <Cloud className="w-8 h-8 text-green-600 dark:text-green-400" />
           <h3 className="font-bold text-sm text-gray-900 dark:text-white">{data.label}</h3>
           {isHovered && (
-            <p className="text-xs text-gray-700 dark:text-gray-300">Acceso desde internet</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('diagram.internetAccess')}</p>
           )}
         </div>
       </Card>
@@ -219,6 +225,7 @@ const ClientNode: React.FC<{ data: ClientNodeData }> = ({ data }) => {
 
 const GPUNode: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div
@@ -233,11 +240,11 @@ const GPUNode: React.FC = () => {
       >
         <div className="flex flex-col gap-2 items-center text-center">
           <Zap className="w-6 h-6 text-orange-600 dark:text-orange-400" />
-          <h3 className="font-bold text-xs text-gray-900 dark:text-white">GPU</h3>
+          <h3 className="font-bold text-xs text-gray-900 dark:text-white">{t('diagram.gpu')}</h3>
           <p className="text-xs text-gray-700 dark:text-gray-300">NVIDIA GTX 1060</p>
           {isHovered && (
             <p className="text-xs text-orange-700 dark:text-orange-300 font-semibold">
-              Passthrough a VM103
+              {t('diagram.passthroughToVm')}103
             </p>
           )}
         </div>
@@ -248,6 +255,7 @@ const GPUNode: React.FC = () => {
 
 const StorageNode: React.FC = () => {
   const [isHovered, setIsHovered] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <div
@@ -262,10 +270,10 @@ const StorageNode: React.FC = () => {
       >
         <div className="flex flex-col gap-2 items-center text-center">
           <HardDrive className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-          <h3 className="font-bold text-xs text-gray-900 dark:text-white">Almacenamiento</h3>
-          <p className="text-xs text-gray-700 dark:text-gray-300">HDD + SSD</p>
+          <h3 className="font-bold text-xs text-gray-900 dark:text-white">{t('diagram.storage')}</h3>
+          <p className="text-xs text-gray-700 dark:text-gray-300">{t('diagram.hddSsd')}</p>
           {isHovered && (
-            <p className="text-xs text-gray-700 dark:text-gray-300">Passthrough a TrueNAS</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300">{t('diagram.passthroughToTruenas')}</p>
           )}
         </div>
       </Card>
@@ -274,11 +282,18 @@ const StorageNode: React.FC = () => {
 };
 
 export const ArchitectureDiagram: React.FC = () => {
+  const { architecture } = useArchitecture();
+  const { t } = useLanguage();
+  
   const nodes: Node<NodeData>[] = [
     // Proxmox Host
     {
       id: 'proxmox',
-      data: { label: 'Proxmox VE', cpu: 4, ram: 32 },
+      data: { 
+        label: architecture.proxmoxHost.name, 
+        cpu: architecture.proxmoxHost.cpu, 
+        ram: architecture.proxmoxHost.ram 
+      },
       position: { x: 400, y: 0 },
       type: 'proxmox',
     },
@@ -306,35 +321,17 @@ export const ArchitectureDiagram: React.FC = () => {
     },
 
     // VMs
-    {
-      id: 'vm101',
-      data: { vm: architectureData.vms[0] },
-      position: { x: 50, y: 300 },
+    ...architecture.vms.map((vm, index) => ({
+      id: vm.id,
+      data: { vm },
+      position: { x: 50 + (index * 250), y: 300 },
       type: 'vm',
-    },
-    {
-      id: 'vm102',
-      data: { vm: architectureData.vms[1] },
-      position: { x: 300, y: 300 },
-      type: 'vm',
-    },
-    {
-      id: 'vm103',
-      data: { vm: architectureData.vms[2] },
-      position: { x: 550, y: 300 },
-      type: 'vm',
-    },
-    {
-      id: 'vm104',
-      data: { vm: architectureData.vms[3] },
-      position: { x: 800, y: 300 },
-      type: 'vm',
-    },
+    })),
 
     // External Client - MOVED DOWN
     {
       id: 'client',
-      data: { label: 'Cliente Externo\n(Internet)' },
+      data: { label: t('diagram.externalClient') },
       position: { x: 400, y: 550 },
       type: 'client',
     },
@@ -348,7 +345,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'proxmox',
       target: 'storage-physical',
       animated: true,
-      label: 'Passthrough',
+      label: t('diagram.passthrough'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#6b7280', strokeWidth: 2 },
       labelStyle: { fill: '#6b7280', fontSize: 11, fontWeight: 600 },
@@ -358,7 +355,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'proxmox',
       target: 'gpu-physical',
       animated: true,
-      label: 'Passthrough',
+      label: t('diagram.passthrough'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#f97316', strokeWidth: 2 },
       labelStyle: { fill: '#f97316', fontSize: 11, fontWeight: 600 },
@@ -370,7 +367,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'proxmox',
       target: 'nfs-volume',
       animated: true,
-      label: 'Gestiona',
+      label: t('diagram.manages'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#3b82f6', strokeWidth: 2 },
       labelStyle: { fill: '#3b82f6', fontSize: 11, fontWeight: 600 },
@@ -383,7 +380,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm101',
       target: 'storage-physical',
       animated: true,
-      label: 'HDD Passthrough',
+      label: t('diagram.hddPassthrough'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#6b7280', strokeWidth: 2 },
       labelStyle: { fill: '#6b7280', fontSize: 10 },
@@ -396,7 +393,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm101',
       target: 'nfs-volume',
       animated: true,
-      label: 'NFS Server',
+      label: t('diagram.nfsServer'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#3b82f6', strokeWidth: 3 },
       labelStyle: { fill: '#3b82f6', fontSize: 11, fontWeight: 600 },
@@ -408,7 +405,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm102',
       target: 'nfs-volume',
       animated: true,
-      label: 'NFS Mount',
+      label: t('diagram.nfsMount'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#3b82f6', strokeWidth: 2 },
       labelStyle: { fill: '#3b82f6', fontSize: 10 },
@@ -420,7 +417,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm103',
       target: 'nfs-volume',
       animated: true,
-      label: 'NFS Mount',
+      label: t('diagram.nfsMount'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#3b82f6', strokeWidth: 2 },
       labelStyle: { fill: '#3b82f6', fontSize: 10 },
@@ -432,7 +429,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm104',
       target: 'nfs-volume',
       animated: true,
-      label: 'NFS Mount',
+      label: t('diagram.nfsMount'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#3b82f6', strokeWidth: 2 },
       labelStyle: { fill: '#3b82f6', fontSize: 10 },
@@ -445,7 +442,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'gpu-physical',
       target: 'vm103',
       animated: true,
-      label: 'GPU Passthrough',
+      label: t('diagram.gpuPassthrough'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#f97316', strokeWidth: 3 },
       labelStyle: { fill: '#f97316', fontSize: 11, fontWeight: 600 },
@@ -458,7 +455,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'client',
       target: 'proxmox',
       animated: true,
-      label: 'Internet',
+      label: t('diagram.internet'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#10b981', strokeWidth: 2, strokeDasharray: '5,5' },
       labelStyle: { fill: '#10b981', fontSize: 10 },
@@ -470,7 +467,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'client',
       target: 'vm102',
       animated: true,
-      label: 'HTTP/HTTPS',
+      label: t('diagram.httpHttps'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#10b981', strokeWidth: 3 },
       labelStyle: { fill: '#10b981', fontSize: 11, fontWeight: 600 },
@@ -483,7 +480,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm102',
       target: 'vm103',
       animated: true,
-      label: 'Proxy → Jellyfin/Ollama',
+      label: t('diagram.proxyTo'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#10b981', strokeWidth: 2 },
       labelStyle: { fill: '#10b981', fontSize: 10 },
@@ -495,7 +492,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm102',
       target: 'vm104',
       animated: true,
-      label: 'Jenkins Master',
+      label: t('diagram.jenkinsMaster'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#8b5cf6', strokeWidth: 2 },
       labelStyle: { fill: '#8b5cf6', fontSize: 10 },
@@ -507,7 +504,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm104',
       target: 'vm102',
       animated: true,
-      label: 'Build Results',
+      label: t('diagram.buildResults'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#8b5cf6', strokeWidth: 2, strokeDasharray: '5,5' },
       labelStyle: { fill: '#8b5cf6', fontSize: 10 },
@@ -532,7 +529,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm102',
       target: 'vm101',
       animated: true,
-      label: 'Datos',
+      label: t('diagram.data'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '5,5' },
       labelStyle: { fill: '#6366f1', fontSize: 10 },
@@ -544,7 +541,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm103',
       target: 'vm101',
       animated: true,
-      label: 'Media',
+      label: t('diagram.media'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '5,5' },
       labelStyle: { fill: '#6366f1', fontSize: 10 },
@@ -556,7 +553,7 @@ export const ArchitectureDiagram: React.FC = () => {
       source: 'vm104',
       target: 'vm101',
       animated: true,
-      label: 'Workspace',
+      label: t('diagram.workspace'),
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '5,5' },
       labelStyle: { fill: '#6366f1', fontSize: 10 },

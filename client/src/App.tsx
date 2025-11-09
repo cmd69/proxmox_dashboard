@@ -5,10 +5,12 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { ArchitectureProvider } from "./contexts/ArchitectureContext";
 import Home from "./pages/Home";
 import VMDetail from "./pages/VMDetail";
 import About from "./pages/About";
 import Configuration from "./pages/Configuration";
+import SystemConfig from "./pages/SystemConfig";
 
 function Router() {
   return (
@@ -17,6 +19,7 @@ function Router() {
       <Route path="/vm/:id" component={VMDetail} />
       <Route path="/about" component={About} />
       <Route path="/configuration" component={Configuration} />
+      <Route path="/system-config" component={SystemConfig} />
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
       <Route component={NotFound} />
@@ -33,15 +36,17 @@ function App() {
   return (
     <ErrorBoundary>
       <LanguageProvider>
-        <ThemeProvider
-          defaultTheme="light"
-          switchable
-        >
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </ThemeProvider>
+        <ArchitectureProvider>
+          <ThemeProvider
+            defaultTheme="light"
+            switchable
+          >
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </ThemeProvider>
+        </ArchitectureProvider>
       </LanguageProvider>
     </ErrorBoundary>
   );

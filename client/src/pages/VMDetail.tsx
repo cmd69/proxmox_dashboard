@@ -4,15 +4,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Header } from '@/components/Header';
 import { ArrowLeft, HardDrive, Cpu, MemoryStick, Zap, AlertCircle, Server, Network } from 'lucide-react';
-import { architectureData, troubleshootingGuides, designDecisions } from '@/data/architecture';
+import { troubleshootingGuides, designDecisions } from '@/data/architecture';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useArchitecture } from '@/contexts/ArchitectureContext';
 
 export default function VMDetail() {
   const { id } = useParams<{ id: string }>();
   const { t } = useLanguage();
+  const { architecture } = useArchitecture();
 
   // Find the VM by ID
-  const vm = architectureData.vms.find((v) => v.id === id);
+  const vm = architecture.vms.find((v) => v.id === id);
 
   if (!vm) {
     return (

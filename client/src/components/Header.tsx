@@ -1,7 +1,7 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { APP_TITLE, APP_LOGO } from '@/const';
-import { Moon, Sun, Menu, Settings, Info, Languages } from 'lucide-react';
+import { Moon, Sun, Menu, Settings, Info, Languages, Cog } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import {
@@ -36,6 +36,12 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <div className="hidden sm:flex items-center gap-2">
+          <Link href="/system-config">
+            <Button variant="ghost" size="sm" className="gap-2">
+              <Cog className="w-4 h-4" />
+              {t('header.config')}
+            </Button>
+          </Link>
           <Link href="/configuration">
             <Button variant="ghost" size="sm">
               {t('header.guide')}
@@ -108,6 +114,16 @@ export function Header() {
                 <SheetTitle>{t('header.menu')}</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-4 mt-6">
+                <Link href="/system-config">
+                  <Button 
+                    variant="ghost" 
+                    className="w-full justify-start gap-2"
+                    onClick={() => setOpen(false)}
+                  >
+                    <Cog className="w-4 h-4" />
+                    {t('header.config')}
+                  </Button>
+                </Link>
                 <Link href="/configuration">
                   <Button 
                     variant="ghost" 
