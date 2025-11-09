@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useArchitecture } from '@/contexts/ArchitectureContext';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,11 @@ export default function SystemConfig() {
   const { architecture, updateArchitecture, resetArchitecture } = useArchitecture();
   const [config, setConfig] = useState(architecture);
   const [expandedVMs, setExpandedVMs] = useState<Set<string>>(new Set());
+  const [isServicesExpanded, setIsServicesExpanded] = useState(false);
+  const [isProxmoxExpanded, setIsProxmoxExpanded] = useState(true);
   const [, setLocation] = useLocation();
+  const servicesRef = useRef<HTMLDivElement>(null);
+  const vmsRef = useRef<HTMLDivElement>(null);
 
   const handleProxmoxChange = (field: string, value: string | number) => {
     setConfig({
@@ -114,6 +118,16 @@ export default function SystemConfig() {
       imageUrl: '',
     };
     setConfig({ ...config, services: [...config.services, newService] });
+    setIsServicesExpanded(true);
+    // Scroll to the new service after it's rendered
+    setTimeout(() => {
+      if (servicesRef.current) {
+        const lastServiceCard = servicesRef.current.querySelector('.service-card:last-child');
+        if (lastServiceCard) {
+          lastServiceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }, 100);
   };
 
   const removeService = (serviceIndex: number) => {
@@ -166,6 +180,17 @@ export default function SystemConfig() {
       color: '#6366F1',
     };
     setConfig({ ...config, vms: [...config.vms, newVM] });
+    // Expand the new VM
+    setExpandedVMs(prev => new Set([...prev, newVM.id]));
+    // Scroll to the new VM after it's rendered
+    setTimeout(() => {
+      if (vmsRef.current) {
+        const newVMCard = vmsRef.current.querySelector(`[data-vm-id="${newVM.id}"]`);
+        if (newVMCard) {
+          newVMCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }, 100);
   };
 
   const removeVM = (vmIndex: number) => {
@@ -248,15 +273,21 @@ export default function SystemConfig() {
           >
             <div 
               className="cursor-pointer"
-              onClick={() => setLocation('/configuration')}
+              onClick={() => setIsProxmoxExpanded(!isProxmoxExpanded)}
             >
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg">
                   <Server className="w-5 h-5 text-white" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('sysconfig.proxmox')}</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex-1">{t('sysconfig.proxmox')}</h2>
+                {isProxmoxExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                )}
               </div>
             </div>
+            {isProxmoxExpanded && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="proxmox-name" className="text-base font-semibold mb-2 block">{t('sysconfig.proxmox.name')}</Label>
@@ -311,25 +342,37 @@ export default function SystemConfig() {
                 />
               </div>
             </div>
+            )}
           </Card>
 
           {/* Global Services Configuration */}
           <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-200 dark:border-green-700/50 shadow-lg">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
+              <div 
+                className="flex items-center gap-3 flex-1 cursor-pointer"
+                onClick={() => setIsServicesExpanded(!isServicesExpanded)}
+              >
                 <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg">
                   <Zap className="w-5 h-5 text-white" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('sysconfig.services.title')}</h2>
+                {isServicesExpanded ? (
+                  <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                )}
               </div>
-              <Button onClick={addService} className="gap-2">
-                <Plus className="w-4 h-4" />
-                {t('sysconfig.services.add')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={addService} className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  {t('sysconfig.services.add')}
+                </Button>
+              </div>
             </div>
-            <div className="space-y-4">
+            {isServicesExpanded && (
+            <div ref={servicesRef} className="space-y-4">
               {config.services.map((service, serviceIndex) => (
-                <Card key={service.id} className="p-4 border border-green-200 dark:border-green-700/50">
+                <Card key={service.id} className="service-card p-4 border border-green-200 dark:border-green-700/50">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label className="text-base font-semibold mb-2 block">{t('sysconfig.services.name')}</Label>
@@ -380,10 +423,11 @@ export default function SystemConfig() {
                 </Card>
               ))}
             </div>
+            )}
           </Card>
 
           {/* Virtual Machines Configuration */}
-          <div className="space-y-4">
+          <div ref={vmsRef} className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('sysconfig.vms')}</h2>
               <Button onClick={addVM} className="gap-2">
@@ -396,7 +440,8 @@ export default function SystemConfig() {
               const isExpanded = expandedVMs.has(vm.id);
               return (
                 <Card 
-                  key={vm.id} 
+                  key={vm.id}
+                  data-vm-id={vm.id}
                   className="overflow-hidden shadow-lg transition-all duration-200 hover:shadow-xl"
                   style={{
                     borderLeft: `4px solid ${vm.color}`,

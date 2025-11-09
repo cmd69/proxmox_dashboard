@@ -141,12 +141,37 @@ export default function Configuration() {
             <Settings2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {architecture.vms.map((vm) => (
-              <div 
-                key={vm.id}
-                className="bg-gradient-to-br from-white to-gray-50 dark:from-slate-800/50 dark:to-slate-900/50 p-4 rounded-lg border-2"
-                style={{ borderColor: vm.color }}
-              >
+            {architecture.vms.map((vm) => {
+              // Helper function to convert hex to rgba
+              const hexToRgba = (hex: string, alpha: number) => {
+                const r = parseInt(hex.slice(1, 3), 16);
+                const g = parseInt(hex.slice(3, 5), 16);
+                const b = parseInt(hex.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+              };
+
+              return (
+                <Link 
+                  key={vm.id}
+                  href={`/vm/${vm.id}`}
+                  className="p-4 rounded-lg border-2 cursor-pointer hover:shadow-lg transition-all duration-200"
+                  style={{ 
+                    borderColor: vm.color,
+                    backgroundColor: 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    const target = e.currentTarget;
+                    target.style.borderColor = vm.color;
+                    target.style.backgroundColor = hexToRgba(vm.color, 0.15);
+                    target.style.borderWidth = '3px';
+                  }}
+                  onMouseLeave={(e) => {
+                    const target = e.currentTarget;
+                    target.style.borderColor = vm.color;
+                    target.style.backgroundColor = 'transparent';
+                    target.style.borderWidth = '2px';
+                  }}
+                >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-bold text-gray-900 dark:text-white">{vm.name}</h3>
                   <span className="text-xs text-gray-600 dark:text-gray-400">VM{vm.vmId}</span>
@@ -193,8 +218,9 @@ export default function Configuration() {
                     )}
                   </div>
                 </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </Card>
 

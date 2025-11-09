@@ -174,4 +174,15 @@
       max-width: 1280px; /* Standard content width */
     }
   }
+
+  /* Prevent scrollbars on ReactFlow container */
+  .react-flow {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .react-flow__viewport {
+    width: 100%;
+    height: 100%;
+  }
 }

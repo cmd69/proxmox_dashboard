@@ -20,6 +20,49 @@ async function startServer() {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
+  // Authentication endpoint
+  app.post("/api/auth/login", async (req: express.Request, res: express.Response) => {
+    try {
+      const { username, password } = req.body;
+      const expectedUsername = process.env.AUTH_USERNAME || 'admin';
+      const expectedPassword = process.env.AUTH_PASSWORD || 'admin';
+
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+
+      if (username === expectedUsername && password === expectedPassword) {
+        // Generate a simple session token (in production, use proper JWT)
+        const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
+        res.json({ success: true, token });
+      } else {
+        res.status(401).json({ error: "Invalid credentials" });
+      }
+    } catch (error: any) {
+      console.error("Error during login:", error);
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  });
+
+  // Verify authentication token
+  app.get("/api/auth/verify", async (req: express.Request, res: express.Response) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ authenticated: false });
+      }
+      const token = authHeader.substring(7);
+      // Simple token validation (in production, use proper JWT validation)
+      if (token) {
+        res.json({ authenticated: true });
+      } else {
+        res.status(401).json({ authenticated: false });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  });
+
   // API Routes - must be before static file serving
   app.get("/api/storage/:key", async (req: express.Request, res: express.Response) => {
     try {

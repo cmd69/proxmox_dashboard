@@ -44,7 +44,7 @@ export interface ArchitectureData {
 
 export const architectureData: ArchitectureData = {
   services: [
-    { id: 'truenas', name: 'TrueNAS', imageUrl: 'https://www.truenas.com/wp-content/uploads/2021/05/TrueNAS-Logo-Horizontal-Blue.png' },
+    { id: 'nfs', name: 'NFS', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/NFS_logo.svg/200px-NFS_logo.svg.png' },
     { id: 'nfs-server', name: 'NFS Server', imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/10/NFS_logo.svg/200px-NFS_logo.svg.png' },
     { id: 'nginx', name: 'Nginx', imageUrl: 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/nginx-proxy-manager.webp' },
     { id: 'portainer', name: 'Portainer', imageUrl: 'https://repository-images.githubusercontent.com/725794693/3b812728-09ec-4db5-b03b-b9f48cc439e3' },
@@ -80,7 +80,7 @@ export const architectureData: ArchitectureData = {
         machineType: 'Standard',
       },
       specialHardware: ['HDD Passthrough (raw disk access)'],
-      services: ['truenas'],
+      services: ['nfs'],
       software: ['ZFS Backup', 'NFSv4 Protocol',],
       nfsMounts: [
         '/mnt/nfs/backups (Proxmox host)',

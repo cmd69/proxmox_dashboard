@@ -84,26 +84,26 @@ export default function About() {
         </Card>
 
         {/* Hardware */}
-        <Card className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950 dark:to-pink-950 border-2 border-purple-200 dark:border-purple-800">
-          <h2 className="text-2xl font-bold text-purple-900 dark:text-purple-200 mb-4 flex items-center gap-2">
+        <Card className="p-6 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-200 dark:border-emerald-800/50">
+          <h2 className="text-2xl font-bold text-emerald-900 dark:text-emerald-200 mb-4 flex items-center gap-2">
             <HardDrive className="w-6 h-6" />
             {t('about.hardware.title')}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-900 dark:to-cyan-900 p-4 rounded-lg border-2 border-blue-300 dark:border-blue-700">
-              <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">{t('about.hardware.cpu')}</h3>
+            <div className="bg-emerald-100/60 dark:bg-emerald-900/40 p-4 rounded-lg border border-emerald-300/50 dark:border-emerald-700/50">
+              <h3 className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2">{t('about.hardware.cpu')}</h3>
               <p className="text-gray-700 dark:text-gray-300">{resourceStats.physicalCPU} {t('about.hardware.cpuValue')}</p>
             </div>
-            <div className="bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-900 dark:to-emerald-900 p-4 rounded-lg border-2 border-green-300 dark:border-green-700">
-              <h3 className="font-semibold text-green-900 dark:text-green-200 mb-2">{t('about.hardware.ram')}</h3>
+            <div className="bg-emerald-100/60 dark:bg-emerald-900/40 p-4 rounded-lg border border-emerald-300/50 dark:border-emerald-700/50">
+              <h3 className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2">{t('about.hardware.ram')}</h3>
               <p className="text-gray-700 dark:text-gray-300">{resourceStats.physicalRAM} {t('about.hardware.ramValue')}</p>
             </div>
-            <div className="bg-gradient-to-br from-orange-100 to-amber-100 dark:from-orange-900 dark:to-amber-900 p-4 rounded-lg border-2 border-orange-300 dark:border-orange-700">
-              <h3 className="font-semibold text-orange-900 dark:text-orange-200 mb-2">{t('about.hardware.gpu')}</h3>
+            <div className="bg-emerald-100/60 dark:bg-emerald-900/40 p-4 rounded-lg border border-emerald-300/50 dark:border-emerald-700/50">
+              <h3 className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2">{t('about.hardware.gpu')}</h3>
               <p className="text-gray-700 dark:text-gray-300">{t('about.hardware.gpuValue')}</p>
             </div>
-            <div className="bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 p-4 rounded-lg border-2 border-indigo-300 dark:border-indigo-700">
-              <h3 className="font-semibold text-indigo-900 dark:text-indigo-200 mb-2">{t('about.hardware.storage')}</h3>
+            <div className="bg-emerald-100/60 dark:bg-emerald-900/40 p-4 rounded-lg border border-emerald-300/50 dark:border-emerald-700/50">
+              <h3 className="font-semibold text-emerald-900 dark:text-emerald-200 mb-2">{t('about.hardware.storage')}</h3>
               <p className="text-gray-700 dark:text-gray-300">{t('about.hardware.storageValue')}</p>
             </div>
           </div>
@@ -135,35 +135,35 @@ export default function About() {
         </Card>
 
         {/* Key Concepts */}
-        <Card className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+        <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-800/50">
+          <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-200 mb-4 flex items-center gap-2">
             <Shield className="w-6 h-6" />
             {t('about.concepts.title')}
           </h2>
           <div className="space-y-4">
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">NFS (Network File System)</h3>
+            <div className="bg-blue-100/50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-300/50 dark:border-blue-700/50">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">NFS (Network File System)</h3>
               <p className="text-gray-700 dark:text-gray-300">
                 Protocolo que permite compartir almacenamiento entre máquinas. TrueNAS (VM101) actúa como
                 servidor NFS, proporcionando almacenamiento compartido a todas las demás VMs.
               </p>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Docker & Containers</h3>
+            <div className="bg-blue-100/50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-300/50 dark:border-blue-700/50">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Docker & Containers</h3>
               <p className="text-gray-700 dark:text-gray-300">
                 Tecnología de containerización que permite empaquetar aplicaciones con sus dependencias.
                 Utilizado en VM102, VM103 y VM104 para ejecutar servicios aislados.
               </p>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Jenkins CI/CD</h3>
+            <div className="bg-blue-100/50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-300/50 dark:border-blue-700/50">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">Jenkins CI/CD</h3>
               <p className="text-gray-700 dark:text-gray-300">
                 Sistema de automatización que orquesta pipelines de construcción, prueba y despliegue.
                 Jenkins Master (VM102) coordina con Jenkins Agent (VM104).
               </p>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">GPU Passthrough</h3>
+            <div className="bg-blue-100/50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-300/50 dark:border-blue-700/50">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">GPU Passthrough</h3>
               <p className="text-gray-700 dark:text-gray-300">
                 Técnica que permite que una VM acceda directamente a un dispositivo GPU físico. Requiere
                 configuración especial (q35 chipset, OVMF BIOS, IOMMU habilitado).

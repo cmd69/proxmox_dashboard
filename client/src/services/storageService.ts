@@ -9,9 +9,14 @@ export interface StorageService {
   set<T>(key: string, value: T): Promise<void>;
   remove(key: string): Promise<void>;
   clear(): Promise<void>;
+  isAuthenticated(): boolean;
 }
 
 class LocalStorageService implements StorageService {
+  isAuthenticated(): boolean {
+    return !!localStorage.getItem('auth_token');
+  }
+
   async get<T>(key: string, defaultValue: T): Promise<T> {
     try {
       const item = localStorage.getItem(key);
@@ -55,9 +60,15 @@ class LocalStorageService implements StorageService {
 
 class ApiStorageService implements StorageService {
   private baseUrl: string;
+  private localService: LocalStorageService;
 
   constructor(baseUrl: string = '/api') {
     this.baseUrl = baseUrl;
+    this.localService = new LocalStorageService();
+  }
+
+  isAuthenticated(): boolean {
+    return this.localService.isAuthenticated();
   }
 
   async get<T>(key: string, defaultValue: T): Promise<T> {
@@ -99,6 +110,13 @@ class ApiStorageService implements StorageService {
   }
 
   async set<T>(key: string, value: T): Promise<void> {
+    // If not authenticated, only save to localStorage
+    if (!this.isAuthenticated()) {
+      console.log(`⚠️ Not authenticated - saving ${key} to localStorage only`);
+      await this.localService.set(key, value);
+      return;
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/storage/${encodeURIComponent(key)}`, {
         method: 'PUT',
@@ -115,9 +133,8 @@ class ApiStorageService implements StorageService {
       console.log(`✅ Saved ${key} to API successfully`);
       
       // Also save to localStorage as backup
-      const localService = new LocalStorageService();
       try {
-        await localService.set(key, value);
+        await this.localService.set(key, value);
         console.log(`✅ Backed up ${key} to localStorage`);
       } catch (localError) {
         // Ignore localStorage errors, API is primary
@@ -126,8 +143,7 @@ class ApiStorageService implements StorageService {
     } catch (error) {
       console.warn(`⚠️ Failed to save ${key} to API, falling back to localStorage:`, error);
       // Fallback to localStorage if API fails
-      const localService = new LocalStorageService();
-      await localService.set(key, value);
+      await this.localService.set(key, value);
       console.log(`✅ Saved ${key} to localStorage (fallback)`);
     }
   }

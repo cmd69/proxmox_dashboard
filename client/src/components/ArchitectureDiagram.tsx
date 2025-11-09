@@ -12,6 +12,7 @@ import ReactFlow, {
   ConnectionLineType,
   Handle,
   Position,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Card } from '@/components/ui/card';
@@ -29,9 +30,11 @@ import { Label } from '@/components/ui/label';
 import { VM } from '@/data/architecture';
 import { useArchitecture } from '@/contexts/ArchitectureContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Link, useLocation } from 'wouter';
-import { HardDrive, Server, Zap, Database, Cloud, Layers, RotateCcw } from 'lucide-react';
-import { diagramStorage } from '@/services/diagramStorage';
+import { HardDrive, Server, Zap, Database, Cloud, Layers, RotateCcw, Save, ChevronDown, Eye, EyeOff, ChevronRight, ChevronUp, Minimize2, Maximize2, GripVertical } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { diagramStorage, DiagramCheckpoint } from '@/services/diagramStorage';
 
 interface VMNodeData {
   vm: VM;
@@ -206,33 +209,37 @@ const VMNode: React.FC<{ data: VMNodeData }> = ({ data }) => {
 
             {/* Aplicaciones */}
             <div className="space-y-1">
-              <div className="text-xs font-semibold text-green-700 dark:text-green-400">{t('vm.services')}</div>
-              <div className="flex flex-wrap gap-1">
-                {data.vm.services.slice(0, 2).map((serviceId: string, idx: number) => {
-                  const service = services.find((s: any) => s.id === serviceId);
-                  if (!service) return null;
-                  return (
-                    <Badge key={idx} className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 border-green-300 dark:border-green-700 flex items-center gap-1">
-                      {service.imageUrl && (
-                        <img
-                          src={service.imageUrl}
-                          alt={service.name}
-                          className="h-3 w-3 object-contain"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      )}
-                      {service.name}
-                    </Badge>
-                  );
-                })}
-                {data.vm.services.length > 2 && (
-                  <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700">
-                    +{data.vm.services.length - 2}
-                  </Badge>
-                )}
-              </div>
+              <Collapsible>
+                <CollapsibleTrigger className="flex items-center justify-between w-full text-xs font-semibold text-green-700 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors">
+                  <span>{t('vm.services')}</span>
+                  <ChevronDown className="h-3 w-3 transition-transform duration-200 data-[state=open]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-1">
+                  <div className="flex flex-wrap gap-1">
+                    {data.vm.services.map((serviceId: string, idx: number) => {
+                      const service = services.find((s: any) => s.id === serviceId);
+                      if (!service) return null;
+                      return (
+                        <Badge key={idx} className="text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 border-green-300 dark:border-green-700 flex items-center gap-1">
+                          {service.imageUrl ? (
+                            <img
+                              src={service.imageUrl}
+                              alt={service.name}
+                              className="h-3 w-3 object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <Server className="h-3 w-3" />
+                          )}
+                          {service.name}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
           </div>
@@ -303,10 +310,12 @@ const ServiceNode: React.FC<{ data: ServiceNodeData }> = ({ data }) => {
               }}
             />
           ) : null}
-          <Server 
-            className="h-8 w-8" 
-            style={{ color: vmColor, display: data.imageUrl ? 'none' : 'block' }} 
-          />
+          {!data.imageUrl && (
+            <Server 
+              className="h-8 w-8" 
+              style={{ color: vmColor }} 
+            />
+          )}
           <p className="text-xs font-semibold text-white text-center leading-tight">
             {data.label}
           </p>
@@ -484,7 +493,133 @@ const StorageNode: React.FC = () => {
 export const ArchitectureDiagram: React.FC = () => {
   const { architecture } = useArchitecture();
   const { t } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const [expandedVMs, setExpandedVMs] = useState<Set<string>>(new Set());
+  const [isVMPanelMinimized, setIsVMPanelMinimized] = useState(false);
+  const [isCheckpointPanelMinimized, setIsCheckpointPanelMinimized] = useState(false);
+  
+  // Panel positions state
+  const [vmPanelPosition, setVmPanelPosition] = useState({ x: 16, y: 16 });
+  const [checkpointPanelPosition, setCheckpointPanelPosition] = useState({ x: 16, y: 16 });
+  const [isDraggingVM, setIsDraggingVM] = useState(false);
+  const [isDraggingCheckpoint, setIsDraggingCheckpoint] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  // Load panel positions from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedVmPos = localStorage.getItem('vmPanelPosition');
+      const savedCheckpointPos = localStorage.getItem('checkpointPanelPosition');
+      if (savedVmPos) {
+        setVmPanelPosition(JSON.parse(savedVmPos));
+      }
+      if (savedCheckpointPos) {
+        setCheckpointPanelPosition(JSON.parse(savedCheckpointPos));
+      }
+    } catch (error) {
+      console.error('Failed to load panel positions:', error);
+    }
+  }, []);
+
+  // Save panel positions to localStorage
+  const savePanelPosition = useCallback((panel: 'vm' | 'checkpoint', position: { x: number; y: number }) => {
+    try {
+      localStorage.setItem(`${panel}PanelPosition`, JSON.stringify(position));
+    } catch (error) {
+      console.error('Failed to save panel position:', error);
+    }
+  }, []);
+
+  // Drag handlers for VM panel
+  const handleVMPanelMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
+    if (grabArea && grabArea.contains(e.target as Node)) {
+      e.preventDefault();
+      setIsDraggingVM(true);
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+  }, []);
+
+  const handleVMPanelMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDraggingVM) return;
+    const newX = e.clientX - dragOffset.x;
+    const newY = e.clientY - dragOffset.y;
+    const maxX = window.innerWidth - 280;
+    const maxY = window.innerHeight - 100;
+    const constrainedX = Math.max(0, Math.min(newX, maxX));
+    const constrainedY = Math.max(0, Math.min(newY, maxY));
+    const newPosition = { x: constrainedX, y: constrainedY };
+    setVmPanelPosition(newPosition);
+    savePanelPosition('vm', newPosition);
+  }, [isDraggingVM, dragOffset, savePanelPosition]);
+
+  const handleVMPanelMouseUp = useCallback(() => {
+    if (isDraggingVM) {
+      setIsDraggingVM(false);
+    }
+  }, [isDraggingVM]);
+
+  // Drag handlers for Checkpoint panel
+  const handleCheckpointPanelMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
+    if (grabArea && grabArea.contains(e.target as Node)) {
+      e.preventDefault();
+      setIsDraggingCheckpoint(true);
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+    }
+  }, []);
+
+  const handleCheckpointPanelMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDraggingCheckpoint) return;
+    const newX = e.clientX - dragOffset.x;
+    const newY = e.clientY - dragOffset.y;
+    const maxX = window.innerWidth - 280;
+    const maxY = window.innerHeight - 100;
+    const constrainedX = Math.max(0, Math.min(newX, maxX));
+    const constrainedY = Math.max(0, Math.min(newY, maxY));
+    const newPosition = { x: constrainedX, y: constrainedY };
+    setCheckpointPanelPosition(newPosition);
+    savePanelPosition('checkpoint', newPosition);
+  }, [isDraggingCheckpoint, dragOffset, savePanelPosition]);
+
+  const handleCheckpointPanelMouseUp = useCallback(() => {
+    if (isDraggingCheckpoint) {
+      setIsDraggingCheckpoint(false);
+    }
+  }, [isDraggingCheckpoint]);
+
+  // Global mouse event listeners for dragging
+  useEffect(() => {
+    if (isDraggingVM) {
+      window.addEventListener('mousemove', handleVMPanelMouseMove);
+      window.addEventListener('mouseup', handleVMPanelMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleVMPanelMouseMove);
+        window.removeEventListener('mouseup', handleVMPanelMouseUp);
+      };
+    }
+  }, [isDraggingVM, handleVMPanelMouseMove, handleVMPanelMouseUp]);
+
+  useEffect(() => {
+    if (isDraggingCheckpoint) {
+      window.addEventListener('mousemove', handleCheckpointPanelMouseMove);
+      window.addEventListener('mouseup', handleCheckpointPanelMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleCheckpointPanelMouseMove);
+        window.removeEventListener('mouseup', handleCheckpointPanelMouseUp);
+      };
+    }
+  }, [isDraggingCheckpoint, handleCheckpointPanelMouseMove, handleCheckpointPanelMouseUp]);
   
   // Ensure services array exists (fallback for old data)
   const services = architecture.services || [];
@@ -649,6 +784,21 @@ export const ArchitectureDiagram: React.FC = () => {
       return newSet;
     });
   }, []);
+
+  const handleToggleAllServices = useCallback(() => {
+    setExpandedVMs((prev) => {
+      // If all VMs are expanded, collapse all; otherwise expand all
+      const allExpanded = architecture.vms.every(vm => prev.has(vm.id));
+      if (allExpanded) {
+        return new Set<string>();
+      } else {
+        return new Set(architecture.vms.map(vm => vm.id));
+      }
+    });
+  }, [architecture.vms]);
+  
+  // Store ReactFlow instance ref to access viewport - must be declared before callbacks that use it
+  const reactFlowInstanceRef = useRef<any>(null);
   
   const [savedPositions, setSavedPositions] = useState<Record<string, { x: number; y: number }>>({});
 
@@ -1464,6 +1614,85 @@ export const ArchitectureDiagram: React.FC = () => {
   }, [selectedEdge, saveCustomEdges, saveHiddenEdges, saveEdgeLabels]);
 
   // Reset all connections to default
+  // Save checkpoint function
+  const handleSaveCheckpoint = useCallback(async () => {
+    if (!isAuthenticated) {
+      alert(t('auth.loginRequired') || 'You must be logged in to save checkpoints');
+      return;
+    }
+    try {
+      // Get current viewport from ReactFlow
+      const reactFlowInstance = reactFlowInstanceRef.current || (window as any).__reactFlowInstance;
+      let viewport = undefined;
+      if (reactFlowInstance) {
+        const viewportState = reactFlowInstance.getViewport();
+        viewport = {
+          x: viewportState.x,
+          y: viewportState.y,
+          zoom: viewportState.zoom,
+        };
+      }
+      
+      const checkpoint: DiagramCheckpoint = {
+        nodePositions: await diagramStorage.loadNodePositions(),
+        customEdges: customEdges,
+        hiddenEdges: Array.from(hiddenEdges),
+        edgeLabels: edgeLabels,
+        viewport: viewport,
+        timestamp: Date.now(),
+      };
+      await diagramStorage.saveCheckpoint(checkpoint);
+      console.log('✅ Checkpoint saved successfully with viewport:', viewport);
+    } catch (error) {
+      console.error('❌ Failed to save checkpoint:', error);
+    }
+  }, [customEdges, hiddenEdges, edgeLabels, isAuthenticated, t]);
+
+  // Restore from checkpoint function
+  const handleRestoreCheckpoint = useCallback(async () => {
+    if (!window.confirm(t('diagram.confirmReset') || '¿Restaurar el diagrama desde el checkpoint guardado?')) {
+      return;
+    }
+    try {
+      const checkpoint = await diagramStorage.loadCheckpoint();
+      if (!checkpoint) {
+        console.warn('⚠️ No checkpoint found');
+        alert(t('diagram.noCheckpoint') || 'No se encontró ningún checkpoint guardado');
+        return;
+      }
+
+      // Restore node positions
+      await diagramStorage.saveNodePositions(checkpoint.nodePositions);
+      setSavedPositions(checkpoint.nodePositions);
+
+      // Restore custom edges
+      setCustomEdges(checkpoint.customEdges);
+      await diagramStorage.saveCustomEdges(checkpoint.customEdges);
+
+      // Restore hidden edges
+      const hiddenSet = new Set(checkpoint.hiddenEdges);
+      setHiddenEdges(hiddenSet);
+      await diagramStorage.saveHiddenEdges(hiddenSet);
+
+      // Restore edge labels
+      setEdgeLabels(checkpoint.edgeLabels);
+      await diagramStorage.saveEdgeLabels(checkpoint.edgeLabels);
+
+      // Restore viewport if available
+      if (checkpoint.viewport && reactFlowInstanceRef.current) {
+        reactFlowInstanceRef.current.setViewport(
+          { x: checkpoint.viewport.x, y: checkpoint.viewport.y },
+          { zoom: checkpoint.viewport.zoom, duration: 200 }
+        );
+        console.log('📍 Viewport restored from checkpoint:', checkpoint.viewport);
+      }
+
+      console.log('✅ Checkpoint restored successfully');
+    } catch (error) {
+      console.error('❌ Failed to restore checkpoint:', error);
+    }
+  }, [t, setSavedPositions]);
+
   const handleResetConnections = useCallback(async () => {
     if (window.confirm(t('diagram.confirmReset'))) {
       try {
@@ -1494,9 +1723,94 @@ export const ArchitectureDiagram: React.FC = () => {
     'gpu-physical': GPUNode,
     service: ServiceNode,
   }), []);
+  
+  const onInit = useCallback((instance: any) => {
+    reactFlowInstanceRef.current = instance;
+    (window as any).__reactFlowInstance = instance;
+  }, []);
+
+  // Internal component to handle auto-fit and viewport restoration
+  const AutoFitView: React.FC = () => {
+    const { fitView, setViewport } = useReactFlow();
+    const resizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const hasRestoredViewport = useRef(false);
+    
+    useEffect(() => {
+      let initialTimeout: ReturnType<typeof setTimeout> | null = null;
+      
+      const restoreViewportFromCheckpoint = async () => {
+        if (hasRestoredViewport.current) return;
+        
+        // Wait a bit for ReactFlow to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        try {
+          const checkpoint = await diagramStorage.loadCheckpoint();
+          if (checkpoint && checkpoint.viewport) {
+            console.log('📍 Restoring viewport from checkpoint:', checkpoint.viewport);
+            setViewport(
+              { x: checkpoint.viewport.x, y: checkpoint.viewport.y },
+              { zoom: checkpoint.viewport.zoom, duration: 0 }
+            );
+            hasRestoredViewport.current = true;
+            return;
+          }
+        } catch (error) {
+          console.warn('Failed to restore viewport from checkpoint:', error);
+        }
+        
+        // If no checkpoint viewport, use fitView after delay
+        initialTimeout = setTimeout(() => {
+          try {
+            fitView({ padding: 0.1, maxZoom: 1.2, duration: 200 });
+            hasRestoredViewport.current = true;
+          } catch (error) {
+            console.warn('Failed to fit view initially:', error);
+          }
+        }, 5000);
+      };
+
+      restoreViewportFromCheckpoint();
+      
+      return () => {
+        if (initialTimeout) {
+          clearTimeout(initialTimeout);
+        }
+      };
+    }, [fitView, setViewport]);
+    
+    useEffect(() => {
+      const handleResize = () => {
+        // Clear previous timeout
+        if (resizeTimeoutRef.current) {
+          clearTimeout(resizeTimeoutRef.current);
+        }
+        
+        // Debounce resize events - wait at least 5 seconds
+        resizeTimeoutRef.current = setTimeout(() => {
+          try {
+            fitView({ padding: 0.1, maxZoom: 1.2, duration: 200 });
+          } catch (error) {
+            console.warn('Failed to fit view on resize:', error);
+          }
+        }, 5000);
+      };
+
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (resizeTimeoutRef.current) {
+          clearTimeout(resizeTimeoutRef.current);
+        }
+      };
+    }, [fitView]);
+
+    return null;
+  };
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" style={{ minHeight: 0, position: 'relative' }}>
       <ReactFlow 
         nodes={flowNodes} 
         edges={flowEdges} 
@@ -1505,8 +1819,10 @@ export const ArchitectureDiagram: React.FC = () => {
         onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onEdgeDoubleClick={handleEdgeDoubleClick}
-        fitView
-        minZoom={0.5}
+        onInit={onInit}
+        fitView={false}
+        fitViewOptions={{ padding: 0.1, maxZoom: 1.2 }}
+        minZoom={0.3}
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         connectionLineType="smoothstep"
@@ -1520,22 +1836,161 @@ export const ArchitectureDiagram: React.FC = () => {
       >
         <Background color="#aaa" gap={16} />
         <Controls />
+        <AutoFitView />
         
-        {/* Instrucciones */}
-        <Panel position="top-left" className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-3 m-4">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            <p>{t('diagram.doubleClickEdit')}</p>
+        {/* Panel de control de VMs - Draggable */}
+        <div
+          className="absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10"
+          style={{
+            width: '280px',
+            left: `${vmPanelPosition.x}px`,
+            top: `${vmPanelPosition.y}px`,
+            cursor: isDraggingVM ? 'grabbing' : 'grab',
+          }}
+          onMouseDown={handleVMPanelMouseDown}
+        >
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 flex-1 cursor-grab active:cursor-grabbing">
+                <GripVertical className="w-4 h-4 text-gray-400" />
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+                  {t('diagram.vmControl')}
+                </h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleToggleAllServices}
+                  className="h-7 w-7 p-0"
+                  title={architecture.vms.every(vm => expandedVMs.has(vm.id)) 
+                    ? t('diagram.hideAllServices')
+                    : t('diagram.showAllServices')}
+                >
+                  {architecture.vms.every(vm => expandedVMs.has(vm.id)) ? (
+                    <EyeOff className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsVMPanelMinimized(!isVMPanelMinimized)}
+                  className="h-7 w-7 p-0"
+                  title={isVMPanelMinimized ? 'Maximizar' : 'Minimizar'}
+                >
+                  {isVMPanelMinimized ? (
+                    <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  ) : (
+                    <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  )}
+                </Button>
+              </div>
+            </div>
+            {!isVMPanelMinimized && (
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {architecture.vms.map((vm) => {
+                  const isExpanded = expandedVMs.has(vm.id);
+                  return (
+                    <div
+                      key={vm.id}
+                      className="flex items-center justify-between p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 flex-1">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: vm.color }}
+                        />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {vm.name}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleToggleVM(vm.id)}
+                        className="h-7 w-7 p-0"
+                        title={isExpanded 
+                          ? t('diagram.hideServices')
+                          : t('diagram.showServices')}
+                      >
+                        {isExpanded ? (
+                          <EyeOff className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        ) : (
+                          <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResetConnections}
-            className="w-full mt-3 gap-2"
-          >
-            <RotateCcw className="w-3 h-3" />
-            {t('diagram.resetDiagram')}
-          </Button>
-        </Panel>
+        </div>
+        
+        {/* Panel de Checkpoint - Draggable */}
+        <div
+          className="absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10"
+          style={{
+            width: '280px',
+            left: `${checkpointPanelPosition.x}px`,
+            top: `${checkpointPanelPosition.y}px`,
+            cursor: isDraggingCheckpoint ? 'grabbing' : 'grab',
+          }}
+          onMouseDown={handleCheckpointPanelMouseDown}
+        >
+          <div className="p-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 flex-1 cursor-grab active:cursor-grabbing">
+                <GripVertical className="w-4 h-4 text-gray-400" />
+                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+                  {t('diagram.controls') || 'Controles'}
+                </h3>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCheckpointPanelMinimized(!isCheckpointPanelMinimized)}
+                className="h-7 w-7 p-0"
+                title={isCheckpointPanelMinimized ? 'Maximizar' : 'Minimizar'}
+              >
+                {isCheckpointPanelMinimized ? (
+                  <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                ) : (
+                  <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                )}
+              </Button>
+            </div>
+            {!isCheckpointPanelMinimized && (
+              <>
+                <div className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  <p>{t('diagram.doubleClickEdit')}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSaveCheckpoint}
+                  className="w-full mt-3 gap-2"
+                  disabled={!isAuthenticated}
+                  title={!isAuthenticated ? (t('auth.loginRequired') || 'Login required to save checkpoints') : ''}
+                >
+                  <Save className="w-3 h-3" />
+                  {t('diagram.saveCheckpoint')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRestoreCheckpoint}
+                  className="w-full mt-2 gap-2"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  {t('diagram.resetDiagram')}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
       </ReactFlow>
 
       {/* Dialog para editar etiquetas */}

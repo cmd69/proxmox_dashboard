@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
   CUSTOM_EDGES: 'diagram-custom-edges',
   HIDDEN_EDGES: 'diagram-hidden-edges',
   EDGE_LABELS: 'diagram-edge-labels',
+  CHECKPOINT: 'diagram-checkpoint',
 } as const;
 
 export interface NodePositions {
@@ -94,6 +95,45 @@ export class DiagramStorageService {
       storageService.remove(STORAGE_KEYS.EDGE_LABELS),
     ]);
   }
+
+  /**
+   * Save a checkpoint of the current diagram state
+   */
+  async saveCheckpoint(checkpoint: DiagramCheckpoint): Promise<void> {
+    console.log('💾 Saving diagram checkpoint...');
+    await storageService.set(STORAGE_KEYS.CHECKPOINT, checkpoint);
+    console.log('✅ Diagram checkpoint saved successfully');
+  }
+
+  /**
+   * Load the saved checkpoint
+   */
+  async loadCheckpoint(): Promise<DiagramCheckpoint | null> {
+    return storageService.get<DiagramCheckpoint | null>(STORAGE_KEYS.CHECKPOINT, null);
+  }
+
+  /**
+   * Clear the checkpoint
+   */
+  async clearCheckpoint(): Promise<void> {
+    await storageService.remove(STORAGE_KEYS.CHECKPOINT);
+  }
+}
+
+/**
+ * Diagram checkpoint interface
+ */
+export interface DiagramCheckpoint {
+  nodePositions: NodePositions;
+  customEdges: Edge[];
+  hiddenEdges: string[];
+  edgeLabels: Record<string, string>;
+  viewport?: {
+    x: number;
+    y: number;
+    zoom: number;
+  };
+  timestamp: number;
 }
 
 // Export singleton instance

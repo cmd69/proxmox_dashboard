@@ -1,9 +1,11 @@
 import { Link } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { APP_TITLE, APP_LOGO } from '@/const';
-import { Moon, Sun, Menu, Settings, Info, Languages, Cog } from 'lucide-react';
+import { Moon, Sun, Menu, Settings, Info, Languages, Cog, LogIn, LogOut } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { LoginDialog } from './LoginDialog';
 import {
   Sheet,
   SheetContent,
@@ -16,7 +18,9 @@ import { useState } from 'react';
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const { language, toggleLanguage, t } = useLanguage();
+  const { isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
 
   return (
     <header className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 shadow-sm sticky top-0 z-50">
@@ -36,12 +40,19 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <div className="hidden sm:flex items-center gap-2">
-          <Link href="/system-config">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <Cog className="w-4 h-4" />
-              {t('header.config')}
+          {isAuthenticated ? (
+            <Link href="/system-config">
+              <Button variant="ghost" size="sm" className="gap-2">
+                <Cog className="w-4 h-4" />
+                {t('header.config')}
+              </Button>
+            </Link>
+          ) : (
+            <Button variant="ghost" size="sm" className="gap-2" onClick={() => setShowLogin(true)}>
+              <LogIn className="w-4 h-4" />
+              {t('auth.login') || 'Login'}
             </Button>
-          </Link>
+          )}
           <Link href="/configuration">
             <Button variant="ghost" size="sm">
               {t('header.guide')}
@@ -80,6 +91,18 @@ export function Header() {
               </>
             )}
           </Button>
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              className="gap-2"
+              title={t('auth.logout') || 'Logout'}
+            >
+              <LogOut className="w-4 h-4" />
+              <span>{t('auth.logout') || 'Logout'}</span>
+            </Button>
+          )}
         </div>
 
         {/* Mobile Navigation */}
@@ -103,6 +126,16 @@ export function Header() {
               <Moon className="w-4 h-4" />
             )}
           </Button>
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              title={t('auth.logout') || 'Logout'}
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="sm">
@@ -114,16 +147,30 @@ export function Header() {
                 <SheetTitle>{t('header.menu')}</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-4 mt-6">
-                <Link href="/system-config">
+                {isAuthenticated ? (
+                  <Link href="/system-config">
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start gap-2"
+                      onClick={() => setOpen(false)}
+                    >
+                      <Cog className="w-4 h-4" />
+                      {t('header.config')}
+                    </Button>
+                  </Link>
+                ) : (
                   <Button 
                     variant="ghost" 
                     className="w-full justify-start gap-2"
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      setOpen(false);
+                      setShowLogin(true);
+                    }}
                   >
-                    <Cog className="w-4 h-4" />
-                    {t('header.config')}
+                    <LogIn className="w-4 h-4" />
+                    {t('auth.login') || 'Login'}
                   </Button>
-                </Link>
+                )}
                 <Link href="/configuration">
                   <Button 
                     variant="ghost" 
@@ -149,6 +196,7 @@ export function Header() {
           </Sheet>
         </div>
       </div>
+      <LoginDialog open={showLogin} onOpenChange={setShowLogin} />
     </header>
   );
 }

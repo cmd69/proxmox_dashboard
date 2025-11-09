@@ -220,6 +220,10 @@ const translations = {
     'diagram.controls': 'Controles',
     'diagram.showAllServices': 'Mostrar todos los servicios',
     'diagram.hideAllServices': 'Ocultar todos los servicios',
+    'diagram.vmControl': 'Control de VMs',
+    'diagram.showAll': 'Mostrar Todos',
+    'diagram.hideAll': 'Ocultar Todos',
+    'diagram.saveCheckpoint': 'Guardar Checkpoint',
     'diagram.legend': 'Leyenda',
     'diagram.provides': 'Proporciona',
     'diagram.showServices': 'Mostrar servicios',
@@ -277,6 +281,18 @@ const translations = {
     
     // Footer
     'footer.text': 'Architecture Dashboard',
+    
+    // Auth
+    'auth.login': 'Iniciar Sesión',
+    'auth.logout': 'Cerrar Sesión',
+    'auth.username': 'Usuario',
+    'auth.password': 'Contraseña',
+    'auth.usernamePlaceholder': 'Ingresa tu usuario',
+    'auth.passwordPlaceholder': 'Ingresa tu contraseña',
+    'auth.loggingIn': 'Iniciando sesión...',
+    'auth.loginSuccess': 'Sesión iniciada correctamente',
+    'auth.loginError': 'Usuario o contraseña incorrectos',
+    'auth.loginRequired': 'Debes iniciar sesión para realizar esta acción',
     
     // Common
     'common.loading': 'Cargando...',
@@ -553,6 +569,10 @@ const translations = {
     'diagram.controls': 'Controls',
     'diagram.showAllServices': 'Show all services',
     'diagram.hideAllServices': 'Hide all services',
+    'diagram.vmControl': 'VM Control',
+    'diagram.showAll': 'Show All',
+    'diagram.hideAll': 'Hide All',
+    'diagram.saveCheckpoint': 'Save Checkpoint',
     'diagram.legend': 'Legend',
     'diagram.provides': 'Provides',
     'diagram.showServices': 'Show services',
@@ -610,6 +630,18 @@ const translations = {
     
     // Footer
     'footer.text': 'Architecture Dashboard',
+    
+    // Auth
+    'auth.login': 'Login',
+    'auth.logout': 'Logout',
+    'auth.username': 'Username',
+    'auth.password': 'Password',
+    'auth.usernamePlaceholder': 'Enter your username',
+    'auth.passwordPlaceholder': 'Enter your password',
+    'auth.loggingIn': 'Logging in...',
+    'auth.loginSuccess': 'Login successful',
+    'auth.loginError': 'Invalid username or password',
+    'auth.loginRequired': 'You must be logged in to perform this action',
     
     // Common
     'common.loading': 'Loading...',
