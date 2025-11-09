@@ -1,0 +1,41 @@
+services:
+  architecture_dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development  # Usar stage de desarrollo
+    container_name: architecture_dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      # Montar código fuente para hot-reload
+      - .:/app
+      # Usar volumen nombrado para node_modules (preserva las dependencias del contenedor)
+      - node_modules:/app/node_modules
+      - dist:/app/dist
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-3000}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-Architecture Dashboard}
+    networks:
+      - demo
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: pnpm dev
+
+volumes:
+  node_modules:
+  dist:
+
+networks:
+  demo:
+    driver: bridge
+    name: demo
+

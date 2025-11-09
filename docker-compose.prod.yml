@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  architecture_dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production  # Usar stage de producción
+    container_name: architecture_dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3000}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-Architecture Dashboard}
+    networks:
+      - demo
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  demo:
+    driver: bridge
+    name: demo
+
