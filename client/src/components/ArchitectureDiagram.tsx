@@ -745,21 +745,36 @@ export const ArchitectureDiagram: React.FC = () => {
   }, []);
 
   // Load custom edges, hidden edges, and edge labels on mount
+  // Priority: Checkpoint > Individual storage keys
   React.useEffect(() => {
     let isMounted = true;
 
     async function loadDiagramData() {
       try {
-        const [loadedEdges, hidden, labels] = await Promise.all([
-          loadCustomEdges(),
-          loadHiddenEdges(),
-          loadEdgeLabels(),
-        ]);
+        // First, try to load from checkpoint
+        const checkpoint = await diagramStorage.loadCheckpoint();
+        
+        if (checkpoint && isMounted) {
+          console.log('📦 Loading diagram data from checkpoint...');
+          setCustomEdges(checkpoint.customEdges);
+          setHiddenEdges(new Set(checkpoint.hiddenEdges));
+          setEdgeLabels(checkpoint.edgeLabels);
+          console.log('✅ Loaded diagram data from checkpoint');
+        } else {
+          // Fallback: load from individual storage keys
+          console.log('📥 Loading diagram data from individual storage keys...');
+          const [loadedEdges, hidden, labels] = await Promise.all([
+            loadCustomEdges(),
+            loadHiddenEdges(),
+            loadEdgeLabels(),
+          ]);
 
-        if (isMounted) {
-          setCustomEdges(loadedEdges);
-          setHiddenEdges(hidden);
-          setEdgeLabels(labels);
+          if (isMounted) {
+            setCustomEdges(loadedEdges);
+            setHiddenEdges(hidden);
+            setEdgeLabels(labels);
+            console.log('✅ Loaded diagram data from individual storage keys');
+          }
         }
       } catch (error) {
         console.error('Failed to load diagram data:', error);
@@ -803,15 +818,30 @@ export const ArchitectureDiagram: React.FC = () => {
   const [savedPositions, setSavedPositions] = useState<Record<string, { x: number; y: number }>>({});
 
   // Load node positions on mount and whenever component remounts
+  // Priority: Checkpoint > Individual storage keys
   React.useEffect(() => {
     let isMounted = true;
 
     async function loadPositions() {
-      console.log('📥 Loading node positions from storage...');
-      const positions = await loadNodePositions();
-      console.log('✅ Loaded node positions:', Object.keys(positions).length, 'positions', positions);
-      if (isMounted) {
-        setSavedPositions(positions);
+      try {
+        // First, try to load from checkpoint
+        const checkpoint = await diagramStorage.loadCheckpoint();
+        
+        if (checkpoint && checkpoint.nodePositions && isMounted) {
+          console.log('📦 Loading node positions from checkpoint...', Object.keys(checkpoint.nodePositions).length, 'positions');
+          setSavedPositions(checkpoint.nodePositions);
+          console.log('✅ Loaded node positions from checkpoint');
+        } else {
+          // Fallback: load from individual storage key
+          console.log('📥 Loading node positions from individual storage key...');
+          const positions = await loadNodePositions();
+          console.log('✅ Loaded node positions:', Object.keys(positions).length, 'positions', positions);
+          if (isMounted) {
+            setSavedPositions(positions);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load node positions:', error);
       }
     }
 
@@ -1740,15 +1770,12 @@ export const ArchitectureDiagram: React.FC = () => {
     (window as any).__reactFlowInstance = instance;
   }, []);
 
-  // Internal component to handle auto-fit and viewport restoration
+  // Internal component to handle viewport restoration from checkpoint only (no auto-fit)
   const AutoFitView: React.FC = () => {
-    const { fitView, setViewport } = useReactFlow();
-    const resizeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { setViewport } = useReactFlow();
     const hasRestoredViewport = useRef(false);
     
     useEffect(() => {
-      let initialTimeout: ReturnType<typeof setTimeout> | null = null;
-      
       const restoreViewportFromCheckpoint = async () => {
         if (hasRestoredViewport.current) return;
         
@@ -1764,58 +1791,14 @@ export const ArchitectureDiagram: React.FC = () => {
               { zoom: checkpoint.viewport.zoom, duration: 0 }
             );
             hasRestoredViewport.current = true;
-            return;
           }
         } catch (error) {
           console.warn('Failed to restore viewport from checkpoint:', error);
         }
-        
-        // If no checkpoint viewport, use fitView after delay
-        initialTimeout = setTimeout(() => {
-          try {
-            fitView({ padding: 0.1, maxZoom: 1.2, duration: 200 });
-            hasRestoredViewport.current = true;
-          } catch (error) {
-            console.warn('Failed to fit view initially:', error);
-          }
-        }, 5000);
       };
 
       restoreViewportFromCheckpoint();
-      
-      return () => {
-        if (initialTimeout) {
-          clearTimeout(initialTimeout);
-        }
-      };
-    }, [fitView, setViewport]);
-    
-    useEffect(() => {
-      const handleResize = () => {
-        // Clear previous timeout
-        if (resizeTimeoutRef.current) {
-          clearTimeout(resizeTimeoutRef.current);
-        }
-        
-        // Debounce resize events - wait at least 5 seconds
-        resizeTimeoutRef.current = setTimeout(() => {
-          try {
-            fitView({ padding: 0.1, maxZoom: 1.2, duration: 200 });
-          } catch (error) {
-            console.warn('Failed to fit view on resize:', error);
-          }
-        }, 5000);
-      };
-
-      window.addEventListener('resize', handleResize);
-      
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        if (resizeTimeoutRef.current) {
-          clearTimeout(resizeTimeoutRef.current);
-        }
-      };
-    }, [fitView]);
+    }, [setViewport]);
 
     return null;
   };
