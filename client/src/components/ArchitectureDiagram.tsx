@@ -8,8 +8,6 @@ import ReactFlow, {
   useEdgesState,
   NodeTypes,
   MarkerType,
-  Panel,
-  ConnectionLineType,
   Handle,
   Position,
   useReactFlow,
@@ -494,16 +492,124 @@ export const ArchitectureDiagram: React.FC = () => {
   const { architecture } = useArchitecture();
   const { t } = useLanguage();
   const { isAuthenticated } = useAuth();
-  const [expandedVMs, setExpandedVMs] = useState<Set<string>>(new Set());
+  // Initialize with all VMs expanded (services visible by default)
+  const [expandedVMs, setExpandedVMs] = useState<Set<string>>(
+    () => new Set(architecture.vms.map(vm => vm.id))
+  );
   const [isVMPanelMinimized, setIsVMPanelMinimized] = useState(false);
   const [isCheckpointPanelMinimized, setIsCheckpointPanelMinimized] = useState(false);
   
+  const PANEL_MARGIN = 16;
+  const PANEL_WIDTH = 280;
+  const DEFAULT_PANEL_HEIGHT = 320;
+  
   // Panel positions state
-  const [vmPanelPosition, setVmPanelPosition] = useState({ x: 16, y: 16 });
-  const [checkpointPanelPosition, setCheckpointPanelPosition] = useState({ x: 16, y: 16 });
+  const [vmPanelPosition, setVmPanelPosition] = useState({ x: PANEL_MARGIN, y: PANEL_MARGIN });
+  const [checkpointPanelPosition, setCheckpointPanelPosition] = useState({ x: PANEL_MARGIN, y: 240 });
   const [isDraggingVM, setIsDraggingVM] = useState(false);
   const [isDraggingCheckpoint, setIsDraggingCheckpoint] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const vmPanelRef = useRef<HTMLDivElement | null>(null);
+  const checkpointPanelRef = useRef<HTMLDivElement | null>(null);
+  const lastDraggedPanelRef = useRef<'vm' | 'checkpoint' | null>(null);
+  
+  const positionsAreEqual = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
+  
+  const clampPanelPosition = useCallback(
+    (position: { x: number; y: number }, size: { width: number; height: number }) => {
+      if (typeof window === 'undefined') {
+        return position;
+      }
+      const maxX = Math.max(PANEL_MARGIN, window.innerWidth - size.width - PANEL_MARGIN);
+      const maxY = Math.max(PANEL_MARGIN, window.innerHeight - size.height - PANEL_MARGIN);
+      return {
+        x: Math.min(Math.max(position.x, PANEL_MARGIN), maxX),
+        y: Math.min(Math.max(position.y, PANEL_MARGIN), maxY),
+      };
+    },
+    [PANEL_MARGIN]
+  );
+  
+  const resolveOverlapForPanel = useCallback(
+    (
+      position: { x: number; y: number },
+      size: { width: number; height: number },
+      otherPosition: { x: number; y: number },
+      otherSize: { width: number; height: number }
+    ) => {
+      const rect = {
+        left: position.x,
+        right: position.x + size.width,
+        top: position.y,
+        bottom: position.y + size.height,
+      };
+      const otherRect = {
+        left: otherPosition.x,
+        right: otherPosition.x + otherSize.width,
+        top: otherPosition.y,
+        bottom: otherPosition.y + otherSize.height,
+      };
+      
+      const overlapX = Math.min(rect.right, otherRect.right) - Math.max(rect.left, otherRect.left);
+      const overlapY = Math.min(rect.bottom, otherRect.bottom) - Math.max(rect.top, otherRect.top);
+      
+      if (overlapX <= 0 || overlapY <= 0) {
+        return clampPanelPosition(position, size);
+      }
+      
+      const adjusted = { ...position };
+      
+      if (overlapX < overlapY) {
+        if (rect.left < otherRect.left) {
+          adjusted.x = otherRect.left - size.width - PANEL_MARGIN;
+        } else {
+          adjusted.x = otherRect.right + PANEL_MARGIN;
+        }
+      } else {
+        if (rect.top < otherRect.top) {
+          adjusted.y = otherRect.top - size.height - PANEL_MARGIN;
+        } else {
+          adjusted.y = otherRect.bottom + PANEL_MARGIN;
+        }
+      }
+      
+      let clamped = clampPanelPosition(adjusted, size);
+      
+      const clampedRect = {
+        left: clamped.x,
+        right: clamped.x + size.width,
+        top: clamped.y,
+        bottom: clamped.y + size.height,
+      };
+      
+      const stillOverlapX =
+        Math.min(clampedRect.right, otherRect.right) - Math.max(clampedRect.left, otherRect.left);
+      const stillOverlapY =
+        Math.min(clampedRect.bottom, otherRect.bottom) - Math.max(clampedRect.top, otherRect.top);
+      
+      if (stillOverlapX > 0 && stillOverlapY > 0) {
+        const alternate = { ...adjusted };
+        if (overlapX < overlapY) {
+          if (rect.top < otherRect.top) {
+            alternate.y = otherRect.top - size.height - PANEL_MARGIN;
+          } else {
+            alternate.y = otherRect.bottom + PANEL_MARGIN;
+          }
+        } else {
+          if (rect.left < otherRect.left) {
+            alternate.x = otherRect.left - size.width - PANEL_MARGIN;
+          } else {
+            alternate.x = otherRect.right + PANEL_MARGIN;
+          }
+        }
+        clamped = clampPanelPosition(alternate, size);
+      }
+      
+      return clamped;
+    },
+    [clampPanelPosition, PANEL_MARGIN]
+  );
 
   // Load panel positions from localStorage on mount
   useEffect(() => {
@@ -536,6 +642,7 @@ export const ArchitectureDiagram: React.FC = () => {
     const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
     if (grabArea && grabArea.contains(e.target as Node)) {
       e.preventDefault();
+      lastDraggedPanelRef.current = 'vm';
       setIsDraggingVM(true);
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setDragOffset({
@@ -545,18 +652,23 @@ export const ArchitectureDiagram: React.FC = () => {
     }
   }, []);
 
-  const handleVMPanelMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDraggingVM) return;
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
-    const maxX = window.innerWidth - 280;
-    const maxY = window.innerHeight - 100;
-    const constrainedX = Math.max(0, Math.min(newX, maxX));
-    const constrainedY = Math.max(0, Math.min(newY, maxY));
-    const newPosition = { x: constrainedX, y: constrainedY };
-    setVmPanelPosition(newPosition);
-    savePanelPosition('vm', newPosition);
-  }, [isDraggingVM, dragOffset, savePanelPosition]);
+  const handleVMPanelMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingVM) return;
+      const basePosition = {
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y,
+      };
+      const vmSize = {
+        width: vmPanelRef.current?.offsetWidth ?? PANEL_WIDTH,
+        height: vmPanelRef.current?.offsetHeight ?? DEFAULT_PANEL_HEIGHT,
+      };
+      const newPosition = clampPanelPosition(basePosition, vmSize);
+      setVmPanelPosition(newPosition);
+      savePanelPosition('vm', newPosition);
+    },
+    [isDraggingVM, dragOffset, clampPanelPosition, savePanelPosition, PANEL_WIDTH, DEFAULT_PANEL_HEIGHT]
+  );
 
   const handleVMPanelMouseUp = useCallback(() => {
     if (isDraggingVM) {
@@ -570,6 +682,7 @@ export const ArchitectureDiagram: React.FC = () => {
     const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
     if (grabArea && grabArea.contains(e.target as Node)) {
       e.preventDefault();
+      lastDraggedPanelRef.current = 'checkpoint';
       setIsDraggingCheckpoint(true);
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setDragOffset({
@@ -579,18 +692,23 @@ export const ArchitectureDiagram: React.FC = () => {
     }
   }, []);
 
-  const handleCheckpointPanelMouseMove = useCallback((e: MouseEvent) => {
-    if (!isDraggingCheckpoint) return;
-    const newX = e.clientX - dragOffset.x;
-    const newY = e.clientY - dragOffset.y;
-    const maxX = window.innerWidth - 280;
-    const maxY = window.innerHeight - 100;
-    const constrainedX = Math.max(0, Math.min(newX, maxX));
-    const constrainedY = Math.max(0, Math.min(newY, maxY));
-    const newPosition = { x: constrainedX, y: constrainedY };
-    setCheckpointPanelPosition(newPosition);
-    savePanelPosition('checkpoint', newPosition);
-  }, [isDraggingCheckpoint, dragOffset, savePanelPosition]);
+  const handleCheckpointPanelMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (!isDraggingCheckpoint) return;
+      const basePosition = {
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y,
+      };
+      const checkpointSize = {
+        width: checkpointPanelRef.current?.offsetWidth ?? PANEL_WIDTH,
+        height: checkpointPanelRef.current?.offsetHeight ?? DEFAULT_PANEL_HEIGHT,
+      };
+      const newPosition = clampPanelPosition(basePosition, checkpointSize);
+      setCheckpointPanelPosition(newPosition);
+      savePanelPosition('checkpoint', newPosition);
+    },
+    [isDraggingCheckpoint, dragOffset, clampPanelPosition, savePanelPosition, PANEL_WIDTH, DEFAULT_PANEL_HEIGHT]
+  );
 
   const handleCheckpointPanelMouseUp = useCallback(() => {
     if (isDraggingCheckpoint) {
@@ -620,6 +738,93 @@ export const ArchitectureDiagram: React.FC = () => {
       };
     }
   }, [isDraggingCheckpoint, handleCheckpointPanelMouseMove, handleCheckpointPanelMouseUp]);
+  
+  useEffect(() => {
+    const vmElement = vmPanelRef.current;
+    const checkpointElement = checkpointPanelRef.current;
+    if (!vmElement || !checkpointElement) {
+      return;
+    }
+    
+    const vmSize = {
+      width: vmElement.offsetWidth || PANEL_WIDTH,
+      height: Math.max(vmElement.offsetHeight || DEFAULT_PANEL_HEIGHT, 1),
+    };
+    const checkpointSize = {
+      width: checkpointElement.offsetWidth || PANEL_WIDTH,
+      height: Math.max(checkpointElement.offsetHeight || DEFAULT_PANEL_HEIGHT, 1),
+    };
+    
+    const vmRect = {
+      left: vmPanelPosition.x,
+      right: vmPanelPosition.x + vmSize.width,
+      top: vmPanelPosition.y,
+      bottom: vmPanelPosition.y + vmSize.height,
+    };
+    const checkpointRect = {
+      left: checkpointPanelPosition.x,
+      right: checkpointPanelPosition.x + checkpointSize.width,
+      top: checkpointPanelPosition.y,
+      bottom: checkpointPanelPosition.y + checkpointSize.height,
+    };
+    
+    const overlapX = Math.min(vmRect.right, checkpointRect.right) - Math.max(vmRect.left, checkpointRect.left);
+    const overlapY = Math.min(vmRect.bottom, checkpointRect.bottom) - Math.max(vmRect.top, checkpointRect.top);
+    const isOverlapping = overlapX > 0 && overlapY > 0;
+    
+    if (!isOverlapping || isDraggingVM || isDraggingCheckpoint) {
+      return;
+    }
+    
+    const targetPanel =
+      lastDraggedPanelRef.current === 'vm'
+        ? 'checkpoint'
+        : lastDraggedPanelRef.current === 'checkpoint'
+          ? 'vm'
+          : 'checkpoint';
+    
+    const adjustPanelPosition = (panel: 'vm' | 'checkpoint') => {
+      if (panel === 'vm') {
+        const adjustedPosition = resolveOverlapForPanel(
+          vmPanelPosition,
+          vmSize,
+          checkpointPanelPosition,
+          checkpointSize
+        );
+        if (!positionsAreEqual(adjustedPosition, vmPanelPosition)) {
+          setVmPanelPosition(adjustedPosition);
+          savePanelPosition('vm', adjustedPosition);
+          return true;
+        }
+      } else {
+        const adjustedPosition = resolveOverlapForPanel(
+          checkpointPanelPosition,
+          checkpointSize,
+          vmPanelPosition,
+          vmSize
+        );
+        if (!positionsAreEqual(adjustedPosition, checkpointPanelPosition)) {
+          setCheckpointPanelPosition(adjustedPosition);
+          savePanelPosition('checkpoint', adjustedPosition);
+          return true;
+        }
+      }
+      return false;
+    };
+    
+    if (!adjustPanelPosition(targetPanel)) {
+      adjustPanelPosition(targetPanel === 'vm' ? 'checkpoint' : 'vm');
+    }
+  }, [
+    vmPanelPosition,
+    checkpointPanelPosition,
+    isDraggingVM,
+    isDraggingCheckpoint,
+    resolveOverlapForPanel,
+    savePanelPosition,
+    PANEL_WIDTH,
+    DEFAULT_PANEL_HEIGHT,
+  ]);
   
   // Ensure services array exists (fallback for old data)
   const services = architecture.services || [];
@@ -787,6 +992,21 @@ export const ArchitectureDiagram: React.FC = () => {
       isMounted = false;
     };
   }, [loadCustomEdges, loadHiddenEdges, loadEdgeLabels]);
+
+  // Keep expandedVMs in sync with architecture.vms (add new VMs to expanded set)
+  useEffect(() => {
+    setExpandedVMs((prev) => {
+      const newSet = new Set(prev);
+      let changed = false;
+      architecture.vms.forEach((vm) => {
+        if (!newSet.has(vm.id)) {
+          newSet.add(vm.id);
+          changed = true;
+        }
+      });
+      return changed ? newSet : prev;
+    });
+  }, [architecture.vms]);
 
   const handleToggleVM = useCallback((vmId: string) => {
     setExpandedVMs((prev) => {
@@ -1834,6 +2054,7 @@ export const ArchitectureDiagram: React.FC = () => {
         
         {/* Panel de control de VMs - Draggable */}
         <div
+          ref={vmPanelRef}
           className="absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10"
           style={{
             width: '280px',
@@ -1925,6 +2146,7 @@ export const ArchitectureDiagram: React.FC = () => {
         
         {/* Panel de Checkpoint - Draggable */}
         <div
+          ref={checkpointPanelRef}
           className="absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10"
           style={{
             width: '280px',
