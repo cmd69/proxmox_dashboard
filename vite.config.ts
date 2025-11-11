@@ -24,10 +24,9 @@ export default defineConfig({
     port: 3000,
     strictPort: false, // Will find next available port if 3000 is busy
     host: true,
-    allowedHosts: [
-      'demo.altoke.top',
-      '.altoke.top', // Allow all subdomains of altoke.top
-    ],
+    allowedHosts: process.env.VITE_ALLOWED_HOSTS
+      ? process.env.VITE_ALLOWED_HOSTS.split(',').map((host: string) => host.trim())
+      : [],
     proxy: {
       // Proxy API requests to Express server
       '/api': {

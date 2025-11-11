@@ -102,7 +102,7 @@ El diagrama principal permite:
 2. **Configurar variables de entorno**
    ```bash
    cp .env.example .env
-   # Editar .env con tus configuraciones
+   # Editar .env con tus configuraciones (especialmente AUTH_USERNAME y AUTH_PASSWORD)
    ```
 
 3. **Iniciar con Docker Compose**
@@ -117,15 +117,24 @@ El diagrama principal permite:
 
 ### ⚙️ Configuración
 
-El archivo `.env` debe contener las siguientes variables:
+1. **Crear archivo de configuración:**
+   ```bash
+   cp .env.example .env
+   ```
 
-```env
-NODE_ENV=development
-PORT=3000
-VITE_APP_TITLE=Architecture Dashboard
-AUTH_USERNAME=admin
-AUTH_PASSWORD=admin
-```
+2. **Editar `.env` con tus valores:**
+   ```env
+   NODE_ENV=development
+   PORT=3000
+   VITE_APP_TITLE=Architecture Dashboard
+   AUTH_USERNAME=tu_usuario_aqui
+   AUTH_PASSWORD=tu_contraseña_segura_aqui
+   ```
+
+   ⚠️ **IMPORTANTE:** 
+   - Cambia las credenciales por defecto antes de usar en producción
+   - El archivo `.env` está en `.gitignore` y no se subirá al repositorio
+   - Las credenciales son obligatorias (no hay valores por defecto por seguridad)
 
 ### 🔐 Autenticación
 
@@ -239,7 +248,7 @@ The main diagram allows you to:
 2. **Configure environment variables**
    ```bash
    cp .env.example .env
-   # Edit .env with your configurations
+   # Edit .env with your configurations (especially AUTH_USERNAME and AUTH_PASSWORD)
    ```
 
 3. **Start with Docker Compose**
@@ -254,15 +263,24 @@ The main diagram allows you to:
 
 ### ⚙️ Configuration
 
-The `.env` file should contain the following variables:
+1. **Create configuration file:**
+   ```bash
+   cp .env.example .env
+   ```
 
-```env
-NODE_ENV=development
-PORT=3000
-VITE_APP_TITLE=Architecture Dashboard
-AUTH_USERNAME=admin
-AUTH_PASSWORD=admin
-```
+2. **Edit `.env` with your values:**
+   ```env
+   NODE_ENV=development
+   PORT=3000
+   VITE_APP_TITLE=Architecture Dashboard
+   AUTH_USERNAME=your_username_here
+   AUTH_PASSWORD=your_secure_password_here
+   ```
+
+   ⚠️ **IMPORTANT:** 
+   - Change default credentials before using in production
+   - The `.env` file is in `.gitignore` and won't be committed to the repository
+   - Credentials are required (no defaults provided for security)
 
 ### 🔐 Authentication
 

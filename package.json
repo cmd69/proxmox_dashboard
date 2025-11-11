@@ -4,7 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently \"pnpm:dev:vite\" \"pnpm:dev:server\"",
+    "dev": "concurrently \"pnpm run dev:vite\" \"pnpm run dev:server\"",
     "dev:vite": "vite --host",
     "dev:server": "npx tsx watch server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",

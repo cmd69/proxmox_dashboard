@@ -12,7 +12,7 @@ export interface StorageService {
   isAuthenticated(): boolean;
 }
 
-class LocalStorageService implements StorageService {
+export class LocalStorageService implements StorageService {
   isAuthenticated(): boolean {
     return !!localStorage.getItem('auth_token');
   }

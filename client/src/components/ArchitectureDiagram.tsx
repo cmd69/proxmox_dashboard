@@ -31,8 +31,17 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useLocation } from 'wouter';
 import { HardDrive, Server, Zap, Database, Cloud, Layers, RotateCcw, Save, ChevronDown, Eye, EyeOff, ChevronRight, ChevronUp, Minimize2, Maximize2, GripVertical } from 'lucide-react';
+import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { diagramStorage, DiagramCheckpoint } from '@/services/diagramStorage';
+import { LocalStorageService } from '@/services/storageService';
+import {
+  applyCheckpointPositions,
+  loadCheckpointFromServer,
+  requireAuth,
+  extractNodePositions,
+  calculateServiceRelativePositions,
+} from '@/utils/checkpointHelpers';
 
 interface VMNodeData {
   vm: VM;
@@ -850,50 +859,22 @@ export const ArchitectureDiagram: React.FC = () => {
       // Load existing positions to preserve hidden nodes
       const existingPositions = await diagramStorage.loadNodePositions();
       
-      // Update only the positions of currently visible nodes
-      const updatedPositions = { ...existingPositions };
+      // Extract current node positions
+      const currentPositions = extractNodePositions(nodes);
       
-      // Create a map of VM positions for calculating relative positions of services
-      const vmPositions = new Map<string, { x: number; y: number }>();
-      nodes.forEach(node => {
-        // Store VM positions
-        if (node.type === 'vm' || node.id === 'proxmox') {
-          vmPositions.set(node.id, node.position);
-        }
+      // Calculate relative positions for services
+      const updatedPositions = calculateServiceRelativePositions(nodes, {
+        ...existingPositions,
+        ...currentPositions,
       });
       
-      nodes.forEach(node => {
-        // For service nodes, calculate and store relative position to parent VM
-        if (node.type === 'service' && node.id.includes('-service-')) {
-          const vmId = node.id.split('-service-')[0];
-          const vmPosition = vmPositions.get(vmId);
-          
-          if (vmPosition) {
-            // Calculate relative offset from VM parent
-            const relativeOffset = {
-              x: node.position.x - vmPosition.x,
-              y: node.position.y - vmPosition.y,
-            };
-            // Store both absolute and relative positions
-            updatedPositions[node.id] = node.position;
-            updatedPositions[`${node.id}_relative`] = relativeOffset;
-            console.log(`💾 Saved service ${node.id} with relative offset:`, relativeOffset);
-          } else {
-            // If VM not found, just save absolute position
-            updatedPositions[node.id] = node.position;
-          }
-        } else {
-          // For non-service nodes, save absolute position
-          updatedPositions[node.id] = node.position;
-        }
-      });
-      
+      // Save to storage (localStorage for non-authenticated, server + localStorage for authenticated)
       await diagramStorage.saveNodePositions(updatedPositions);
-      console.log('✅ Node positions saved:', Object.keys(updatedPositions).length, 'nodes');
+      console.log(`✅ Node positions saved to ${isAuthenticated ? 'server' : 'localStorage'}:`, Object.keys(updatedPositions).length, 'nodes');
     } catch (error) {
       console.error('❌ Failed to save node positions:', error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Load and save custom edges using storage service
   const loadCustomEdges = useCallback(async () => {
@@ -908,10 +889,11 @@ export const ArchitectureDiagram: React.FC = () => {
   const saveCustomEdges = useCallback(async (edges: Edge[]) => {
     try {
       await diagramStorage.saveCustomEdges(edges);
+      console.log(`✅ Custom edges saved to ${isAuthenticated ? 'server' : 'localStorage'}`);
     } catch (error) {
       console.error('Failed to save custom edges:', error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Load and save hidden edges using storage service
   const loadHiddenEdges = useCallback(async () => {
@@ -926,10 +908,11 @@ export const ArchitectureDiagram: React.FC = () => {
   const saveHiddenEdges = useCallback(async (hidden: Set<string>) => {
     try {
       await diagramStorage.saveHiddenEdges(hidden);
+      console.log(`✅ Hidden edges saved to ${isAuthenticated ? 'server' : 'localStorage'}`);
     } catch (error) {
       console.error('Failed to save hidden edges:', error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Load and save edge labels using storage service
   const loadEdgeLabels = useCallback(async () => {
@@ -944,29 +927,52 @@ export const ArchitectureDiagram: React.FC = () => {
   const saveEdgeLabels = useCallback(async (labels: Record<string, string>) => {
     try {
       await diagramStorage.saveEdgeLabels(labels);
+      console.log(`✅ Edge labels saved to ${isAuthenticated ? 'server' : 'localStorage'}`);
     } catch (error) {
       console.error('Failed to save edge labels:', error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Load custom edges, hidden edges, and edge labels on mount
-  // Priority: Checkpoint > Individual storage keys
+  // Priority: Server checkpoint (always) > Individual storage keys (only for authenticated)
+  // Non-authenticated users always load from server checkpoint, never from localStorage
   React.useEffect(() => {
     let isMounted = true;
 
     async function loadDiagramData() {
       try {
-        // First, try to load from checkpoint
-        const checkpoint = await diagramStorage.loadCheckpoint();
+        // Always try to load checkpoint from server first
+        let checkpoint: DiagramCheckpoint | null = null;
+        
+        try {
+          checkpoint = await loadCheckpointFromServer();
+          if (checkpoint) {
+            console.log('📦 Loaded checkpoint from server on mount for diagram data');
+            // Update localStorage if authenticated (for backup)
+            if (isAuthenticated) {
+              const localService = new LocalStorageService();
+              await localService.set('diagram-checkpoint', checkpoint);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to load checkpoint from server, trying fallback:', error);
+          // Fallback: if authenticated, try localStorage
+          if (isAuthenticated) {
+            checkpoint = await diagramStorage.loadCheckpoint();
+          }
+        }
         
         if (checkpoint && isMounted) {
           console.log('📦 Loading diagram data from checkpoint...');
-          setCustomEdges(checkpoint.customEdges);
-          setHiddenEdges(new Set(checkpoint.hiddenEdges));
-          setEdgeLabels(checkpoint.edgeLabels);
+          setCustomEdges(checkpoint.customEdges || []);
+          setHiddenEdges(new Set(checkpoint.hiddenEdges || []));
+          setEdgeLabels(checkpoint.edgeLabels || {});
           console.log('✅ Loaded diagram data from checkpoint');
-        } else {
-          // Fallback: load from individual storage keys
+          return;
+        }
+        
+        // If no checkpoint and authenticated, try individual storage keys
+        if (isAuthenticated) {
           console.log('📥 Loading diagram data from individual storage keys...');
           const [loadedEdges, hidden, labels] = await Promise.all([
             loadCustomEdges(),
@@ -980,9 +986,21 @@ export const ArchitectureDiagram: React.FC = () => {
             setEdgeLabels(labels);
             console.log('✅ Loaded diagram data from individual storage keys');
           }
+        } else {
+          // Non-authenticated user without checkpoint: use default values
+          if (isMounted) {
+            setCustomEdges([]);
+            setHiddenEdges(new Set());
+            setEdgeLabels({});
+          }
         }
       } catch (error) {
         console.error('Failed to load diagram data:', error);
+        if (isMounted) {
+          setCustomEdges([]);
+          setHiddenEdges(new Set());
+          setEdgeLabels({});
+        }
       }
     }
 
@@ -991,7 +1009,7 @@ export const ArchitectureDiagram: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [loadCustomEdges, loadHiddenEdges, loadEdgeLabels]);
+  }, [loadCustomEdges, loadHiddenEdges, loadEdgeLabels, isAuthenticated]);
 
   // Keep expandedVMs in sync with architecture.vms (add new VMs to expanded set)
   useEffect(() => {
@@ -1036,32 +1054,68 @@ export const ArchitectureDiagram: React.FC = () => {
   const reactFlowInstanceRef = useRef<any>(null);
   
   const [savedPositions, setSavedPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [isRestoringCheckpoint, setIsRestoringCheckpoint] = useState(false);
 
   // Load node positions on mount and whenever component remounts
-  // Priority: Checkpoint > Individual storage keys
+  // Priority: Server checkpoint (always) > Individual storage keys (only for authenticated)
+  // Non-authenticated users always load from server checkpoint, never from localStorage
   React.useEffect(() => {
     let isMounted = true;
 
     async function loadPositions() {
       try {
-        // First, try to load from checkpoint
-        const checkpoint = await diagramStorage.loadCheckpoint();
+        // Always try to load checkpoint from server first
+        let checkpoint: DiagramCheckpoint | null = null;
+        
+        try {
+          checkpoint = await loadCheckpointFromServer();
+          if (checkpoint) {
+            console.log('📦 Loaded checkpoint from server on mount:', {
+              timestamp: checkpoint.timestamp ? new Date(checkpoint.timestamp).toISOString() : 'no timestamp',
+              nodePositions: Object.keys(checkpoint.nodePositions || {}).length,
+            });
+            // Update localStorage if authenticated (for backup)
+            if (isAuthenticated) {
+              const localService = new LocalStorageService();
+              await localService.set('diagram-checkpoint', checkpoint);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to load checkpoint from server, trying fallback:', error);
+          // Fallback: if authenticated, try localStorage
+          if (isAuthenticated) {
+            checkpoint = await diagramStorage.loadCheckpoint();
+          }
+        }
         
         if (checkpoint && checkpoint.nodePositions && isMounted) {
           console.log('📦 Loading node positions from checkpoint...', Object.keys(checkpoint.nodePositions).length, 'positions');
+          setIsRestoringCheckpoint(true);
           setSavedPositions(checkpoint.nodePositions);
+          setTimeout(() => setIsRestoringCheckpoint(false), 300);
           console.log('✅ Loaded node positions from checkpoint');
-        } else {
-          // Fallback: load from individual storage key
+          return;
+        }
+        
+        // If no checkpoint and authenticated, try individual storage keys
+        if (isAuthenticated) {
           console.log('📥 Loading node positions from individual storage key...');
           const positions = await loadNodePositions();
-          console.log('✅ Loaded node positions:', Object.keys(positions).length, 'positions', positions);
+          console.log('✅ Loaded node positions:', Object.keys(positions).length, 'positions');
           if (isMounted) {
             setSavedPositions(positions);
+          }
+        } else {
+          // Non-authenticated user without checkpoint: use default positions
+          if (isMounted) {
+            setSavedPositions({});
           }
         }
       } catch (error) {
         console.error('Failed to load node positions:', error);
+        if (isMounted) {
+          setSavedPositions({});
+        }
       }
     }
 
@@ -1070,7 +1124,7 @@ export const ArchitectureDiagram: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [loadNodePositions]);
+  }, [loadNodePositions, isAuthenticated]);
 
   const nodes = React.useMemo<Node<NodeData>[]>(() => {
     return [
@@ -1305,8 +1359,10 @@ export const ArchitectureDiagram: React.FC = () => {
   const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(allEdges);
 
   // Update nodes when they change or when saved positions are loaded
+  // Only apply saved positions when restoring checkpoint or on initial load
+  // Preserve current positions when user is actively editing
   React.useEffect(() => {
-    console.log('🔄 Updating flow nodes, savedPositions:', Object.keys(savedPositions).length, 'positions', savedPositions);
+    console.log('🔄 Updating flow nodes, savedPositions:', Object.keys(savedPositions).length, 'positions', 'isRestoring:', isRestoringCheckpoint);
     
     setFlowNodes((currentNodes) => {
       // Create a map of current node positions for reference
@@ -1322,16 +1378,19 @@ export const ArchitectureDiagram: React.FC = () => {
         }
       });
       
-      // Always apply saved positions if available, even if we have current nodes
-      // This ensures that when we navigate back, saved positions are restored
-      if (Object.keys(savedPositions).length > 0) {
-        console.log('📥 Applying saved positions to nodes');
+      // Only apply saved positions if:
+      // 1. We're restoring from checkpoint (isRestoringCheckpoint = true)
+      // 2. OR we have no current nodes (initial load)
+      // Otherwise, preserve current positions to allow user editing
+      const shouldApplySavedPositions = isRestoringCheckpoint || currentNodes.length === 0;
+      
+      if (shouldApplySavedPositions && Object.keys(savedPositions).length > 0) {
+        console.log('📥 Applying saved positions to nodes (restoring checkpoint or initial load)');
         const updatedNodes = nodes.map(newNode => {
           // For service nodes, use relative offset if available
           if (newNode.type === 'service' && newNode.id.includes('-service-')) {
             const vmId = newNode.id.split('-service-')[0];
             const vmPosition = vmPositionMap.get(vmId);
-            const currentService = currentNodeMap.get(newNode.id);
             
             if (vmPosition) {
               // Try relative offset first
@@ -1349,13 +1408,10 @@ export const ArchitectureDiagram: React.FC = () => {
               }
             }
             
-            // Fallback: use saved absolute or current position
+            // Fallback: use saved absolute position
             const savedPosition = savedPositions[newNode.id];
             if (savedPosition) {
               return { ...newNode, position: savedPosition };
-            }
-            if (currentService?.position) {
-              return { ...newNode, position: currentService.position };
             }
             return newNode;
           }
@@ -1367,23 +1423,14 @@ export const ArchitectureDiagram: React.FC = () => {
             return { ...newNode, position: savedPosition };
           }
           
-          // If no saved position, check if current node has a position
-          const existingNode = currentNodeMap.get(newNode.id);
-          if (existingNode && existingNode.position) {
-            return { ...newNode, position: existingNode.position };
-          }
           return newNode;
         });
         return updatedNodes;
       }
       
-      // If we have current nodes but no saved positions, preserve current positions
+      // If we have current nodes and we're not restoring, preserve current positions
+      // This allows users (including non-authenticated) to edit the diagram
       if (currentNodes.length > 0) {
-        // Save current positions before updating (async, but don't wait)
-        saveNodePositions(currentNodes).catch((error) => {
-          console.error('Failed to save node positions:', error);
-        });
-        
         // Preserve positions of existing nodes, use default for new nodes
         const nodeMap = new Map(currentNodes.map(node => [node.id, node]));
         
@@ -1399,7 +1446,7 @@ export const ArchitectureDiagram: React.FC = () => {
       // Default: return nodes as-is (will use positions from useMemo)
       return nodes;
     });
-  }, [nodes, savedPositions, setFlowNodes, saveNodePositions]);
+  }, [nodes, savedPositions, setFlowNodes, isRestoringCheckpoint]);
 
   React.useEffect(() => {
     setFlowEdges(allEdges);
@@ -1596,15 +1643,17 @@ export const ArchitectureDiagram: React.FC = () => {
     
     debounceTimeoutRef.current = setTimeout(() => {
       saveNodePositions(nodes).then(() => {
-        // Reload savedPositions to get updated relative offsets
-        loadNodePositions().then((newPositions) => {
-          setSavedPositions(newPositions);
-        }).catch(() => {});
+        // Update savedPositions with current positions to maintain them during session
+        // This allows users (including non-authenticated) to keep their edits
+        const currentPositions = extractNodePositions(nodes);
+        const updatedPositions = calculateServiceRelativePositions(nodes, currentPositions);
+        setSavedPositions(updatedPositions);
+        console.log('✅ Updated savedPositions state with current positions (debounced)');
       }).catch((error) => {
         console.error('Failed to save node positions:', error);
       });
     }, 500); // 500ms debounce
-  }, [saveNodePositions, loadNodePositions]);
+  }, [saveNodePositions]);
 
   // Save node positions when they change
   const handleNodesChange = useCallback(
@@ -1704,11 +1753,12 @@ export const ArchitectureDiagram: React.FC = () => {
               console.log('💾 Drag ended, saving positions immediately...', updatedNodes.length, 'nodes');
               saveNodePositions(updatedNodes).then(() => {
                 console.log('✅ Positions saved after drag end');
-                // Reload savedPositions to get updated relative offsets
-                loadNodePositions().then((newPositions) => {
-                  setSavedPositions(newPositions);
-                  console.log('✅ Updated savedPositions state with new relative offsets');
-                }).catch(() => {});
+                // Update savedPositions with current positions to maintain them during session
+                // This allows users (including non-authenticated) to keep their edits
+                const currentPositions = extractNodePositions(updatedNodes);
+                const updatedPositions = calculateServiceRelativePositions(updatedNodes, currentPositions);
+                setSavedPositions(updatedPositions);
+                console.log('✅ Updated savedPositions state with current positions');
               }).catch((error) => {
                 console.error('❌ Failed to save node positions:', error);
               });
@@ -1878,81 +1928,108 @@ export const ArchitectureDiagram: React.FC = () => {
   // Save checkpoint function
   const handleSaveCheckpoint = useCallback(async () => {
     if (!isAuthenticated) {
-      alert(t('auth.loginRequired') || 'You must be logged in to save checkpoints');
+      toast.error(t('auth.loginRequired') || 'You must be logged in to save checkpoints');
       return;
     }
+    
     try {
       // Get current viewport from ReactFlow
       const reactFlowInstance = reactFlowInstanceRef.current || (window as any).__reactFlowInstance;
-      let viewport = undefined;
-      if (reactFlowInstance) {
-        const viewportState = reactFlowInstance.getViewport();
-        viewport = {
-          x: viewportState.x,
-          y: viewportState.y,
-          zoom: viewportState.zoom,
-        };
-      }
+      const viewport = reactFlowInstance?.getViewport() ? {
+        x: reactFlowInstance.getViewport().x,
+        y: reactFlowInstance.getViewport().y,
+        zoom: reactFlowInstance.getViewport().zoom,
+      } : undefined;
+      
+      // Get current node positions from refs
+      const currentNodes = nodesRef.current;
+      const nodePositions = extractNodePositions(currentNodes);
       
       const checkpoint: DiagramCheckpoint = {
-        nodePositions: await diagramStorage.loadNodePositions(),
+        nodePositions,
         customEdges: customEdges,
         hiddenEdges: Array.from(hiddenEdges),
         edgeLabels: edgeLabels,
-        viewport: viewport,
+        viewport,
         timestamp: Date.now(),
       };
+      
       await diagramStorage.saveCheckpoint(checkpoint);
-      console.log('✅ Checkpoint saved successfully with viewport:', viewport);
+      console.log('✅ Checkpoint saved successfully');
+      toast.success(t('diagram.checkpointSaved') || 'Checkpoint guardado correctamente');
     } catch (error) {
       console.error('❌ Failed to save checkpoint:', error);
+      toast.error(t('diagram.checkpointSaveError') || 'Error al guardar el checkpoint');
     }
   }, [customEdges, hiddenEdges, edgeLabels, isAuthenticated, t]);
 
   // Restore from checkpoint function
+  // All users (authenticated or not) can restore from the admin's server checkpoint
   const handleRestoreCheckpoint = useCallback(async () => {
     if (!window.confirm(t('diagram.confirmReset') || '¿Restaurar el diagrama desde el checkpoint guardado?')) {
       return;
     }
+    
     try {
-      const checkpoint = await diagramStorage.loadCheckpoint();
+      setIsRestoringCheckpoint(true);
+      
+      // Always load from server first
+      let checkpoint: DiagramCheckpoint | null = null;
+      try {
+        checkpoint = await loadCheckpointFromServer();
+      } catch (error) {
+        // Fallback to localStorage if authenticated
+        if (isAuthenticated) {
+          checkpoint = await diagramStorage.loadCheckpoint();
+        }
+      }
+      
       if (!checkpoint) {
-        console.warn('⚠️ No checkpoint found');
-        alert(t('diagram.noCheckpoint') || 'No se encontró ningún checkpoint guardado');
+        setIsRestoringCheckpoint(false);
+        toast.error(t('diagram.noCheckpoint') || 'No se encontró ningún checkpoint guardado');
         return;
       }
-
-      // Restore node positions
-      await diagramStorage.saveNodePositions(checkpoint.nodePositions);
-      setSavedPositions(checkpoint.nodePositions);
-
-      // Restore custom edges
-      setCustomEdges(checkpoint.customEdges);
-      await diagramStorage.saveCustomEdges(checkpoint.customEdges);
-
-      // Restore hidden edges
-      const hiddenSet = new Set(checkpoint.hiddenEdges);
-      setHiddenEdges(hiddenSet);
-      await diagramStorage.saveHiddenEdges(hiddenSet);
-
-      // Restore edge labels
-      setEdgeLabels(checkpoint.edgeLabels);
-      await diagramStorage.saveEdgeLabels(checkpoint.edgeLabels);
-
+      
+      console.log('✅ Loaded checkpoint from server:', {
+        timestamp: checkpoint.timestamp ? new Date(checkpoint.timestamp).toISOString() : 'no timestamp',
+        nodePositions: Object.keys(checkpoint.nodePositions || {}).length,
+      });
+      
+      // Update localStorage if authenticated
+      if (isAuthenticated) {
+        const localService = new LocalStorageService();
+        await localService.set('diagram-checkpoint', checkpoint);
+        await diagramStorage.saveNodePositions(checkpoint.nodePositions);
+        await diagramStorage.saveCustomEdges(checkpoint.customEdges);
+        await diagramStorage.saveHiddenEdges(new Set(checkpoint.hiddenEdges));
+        await diagramStorage.saveEdgeLabels(checkpoint.edgeLabels);
+      }
+      
+      // Apply checkpoint to state
+      setSavedPositions(checkpoint.nodePositions || {});
+      setFlowNodes(() => applyCheckpointPositions(nodes, checkpoint.nodePositions || {}));
+      setCustomEdges(checkpoint.customEdges || []);
+      setHiddenEdges(new Set(checkpoint.hiddenEdges || []));
+      setEdgeLabels(checkpoint.edgeLabels || {});
+      
       // Restore viewport if available
       if (checkpoint.viewport && reactFlowInstanceRef.current) {
         reactFlowInstanceRef.current.setViewport(
           { x: checkpoint.viewport.x, y: checkpoint.viewport.y },
           { zoom: checkpoint.viewport.zoom, duration: 200 }
         );
-        console.log('📍 Viewport restored from checkpoint:', checkpoint.viewport);
       }
-
+      
+      setTimeout(() => setIsRestoringCheckpoint(false), 100);
+      
       console.log('✅ Checkpoint restored successfully');
+      toast.success(t('diagram.checkpointRestored') || 'Checkpoint restaurado correctamente');
     } catch (error) {
+      setIsRestoringCheckpoint(false);
       console.error('❌ Failed to restore checkpoint:', error);
+      toast.error(t('diagram.checkpointRestoreError') || 'Error al restaurar el checkpoint');
     }
-  }, [t, setSavedPositions]);
+  }, [t, setSavedPositions, isAuthenticated, nodes, setFlowNodes]);
 
   const handleResetConnections = useCallback(async () => {
     if (window.confirm(t('diagram.confirmReset'))) {

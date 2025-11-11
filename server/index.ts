@@ -1,3 +1,7 @@
+// Note: In Docker, environment variables are provided by docker-compose.yml
+// For local development without Docker, install dotenv and uncomment:
+// import "dotenv/config";
+
 import express from "express";
 import { createServer } from "http";
 import path from "path";
@@ -24,18 +28,27 @@ async function startServer() {
   app.post("/api/auth/login", async (req: express.Request, res: express.Response) => {
     try {
       const { username, password } = req.body;
-      const expectedUsername = process.env.AUTH_USERNAME || 'admin';
-      const expectedPassword = process.env.AUTH_PASSWORD || 'admin';
+      
+      // Require credentials from environment variables (no defaults for security)
+      const expectedUsername = process.env.AUTH_USERNAME;
+      const expectedPassword = process.env.AUTH_PASSWORD;
+
+      if (!expectedUsername || !expectedPassword) {
+        console.error("❌ Authentication credentials not configured. Set AUTH_USERNAME and AUTH_PASSWORD environment variables.");
+        return res.status(500).json({ error: "Server configuration error" });
+      }
 
       if (!username || !password) {
         return res.status(400).json({ error: "Username and password are required" });
       }
 
       if (username === expectedUsername && password === expectedPassword) {
-        // Generate a simple session token (in production, use proper JWT)
+        // Generate session token with timestamp for basic expiration
+        // Note: For production, consider using proper JWT with expiration
         const token = Buffer.from(`${username}:${Date.now()}`).toString('base64');
         res.json({ success: true, token });
       } else {
+        // Don't reveal which field is incorrect
         res.status(401).json({ error: "Invalid credentials" });
       }
     } catch (error: any) {
@@ -52,13 +65,26 @@ async function startServer() {
         return res.status(401).json({ authenticated: false });
       }
       const token = authHeader.substring(7);
-      // Simple token validation (in production, use proper JWT validation)
-      if (token) {
-        res.json({ authenticated: true });
+      
+      // Basic token validation - check if token exists and is valid format
+      // Note: For production, implement proper JWT validation with expiration
+      if (token && token.length > 0) {
+        try {
+          // Verify token format (base64 encoded string)
+          const decoded = Buffer.from(token, 'base64').toString('utf-8');
+          if (decoded.includes(':')) {
+            res.json({ authenticated: true });
+          } else {
+            res.status(401).json({ authenticated: false });
+          }
+        } catch {
+          res.status(401).json({ authenticated: false });
+        }
       } else {
         res.status(401).json({ authenticated: false });
       }
     } catch (error: any) {
+      console.error("Error verifying token:", error);
       res.status(500).json({ error: error.message || "Internal server error" });
     }
   });
@@ -68,21 +94,22 @@ async function startServer() {
     try {
       const { key } = req.params;
       const decodedKey = decodeURIComponent(key);
-      console.log(`[API] GET /api/storage/${decodedKey}`);
+      
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[API] GET /api/storage/${decodedKey}`);
+      }
       
       const value = await getStorageValue(decodedKey);
       
       if (value === undefined) {
-        console.log(`[API] Key ${decodedKey} not found, returning 404`);
         return res.status(404).json({ error: "Key not found" });
       }
       
-      console.log(`[API] ✅ Found ${decodedKey}`, typeof value, Array.isArray(value) ? `array[${value.length}]` : typeof value === 'object' ? `object[${Object.keys(value).length} keys]` : '');
       // Return value directly, not wrapped in object with key
       res.json({ value });
     } catch (error: any) {
-      console.error(`[API] ❌ Error getting storage value for ${req.params.key}:`, error);
-      console.error("Error stack:", error.stack);
+      console.error(`[API] Error getting storage value for ${req.params.key}:`, error);
       res.status(500).json({ error: error.message || "Internal server error" });
     }
   });
@@ -93,19 +120,19 @@ async function startServer() {
       const decodedKey = decodeURIComponent(key);
       const { value } = req.body;
       
-      console.log(`[API] PUT /api/storage/${decodedKey}`, typeof value, Array.isArray(value) ? `array[${value.length}]` : typeof value === 'object' ? `object[${Object.keys(value).length} keys]` : '');
+      // Only log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[API] PUT /api/storage/${decodedKey}`, typeof value, Array.isArray(value) ? `array[${value.length}]` : typeof value === 'object' ? `object[${Object.keys(value).length} keys]` : '');
+      }
       
       if (value === undefined) {
-        console.error(`[API] Error: Value is required for key ${decodedKey}`);
         return res.status(400).json({ error: "Value is required" });
       }
       
       await setStorageValue(decodedKey, value);
-      console.log(`[API] ✅ Successfully saved ${decodedKey}`);
       res.json({ key: decodedKey, value, success: true });
     } catch (error: any) {
-      console.error(`[API] ❌ Error setting storage value for ${req.params.key}:`, error);
-      console.error("Error stack:", error.stack);
+      console.error(`[API] Error setting storage value for ${req.params.key}:`, error);
       res.status(500).json({ error: error.message || "Internal server error" });
     }
   });

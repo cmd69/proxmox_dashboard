@@ -239,6 +239,11 @@ const translations = {
     'diagram.resetConnections': 'Restablecer Conexiones',
     'diagram.resetDiagram': 'Restablecer Diagrama',
     'diagram.confirmReset': '¿Estás seguro de que deseas restablecer todas las conexiones a su estado por defecto? Se eliminarán todas las conexiones personalizadas y etiquetas modificadas.',
+    'diagram.checkpointSaved': 'Checkpoint guardado correctamente',
+    'diagram.checkpointRestored': 'Checkpoint restaurado correctamente',
+    'diagram.checkpointSaveError': 'Error al guardar el checkpoint',
+    'diagram.checkpointRestoreError': 'Error al restaurar el checkpoint',
+    'diagram.noCheckpoint': 'No se encontró ningún checkpoint guardado',
     
     // VM Detail
     'vm.back': 'Volver al diagrama',
@@ -588,6 +593,11 @@ const translations = {
     'diagram.resetConnections': 'Reset Connections',
     'diagram.resetDiagram': 'Reset Diagram',
     'diagram.confirmReset': 'Are you sure you want to reset all connections to their default state? All custom connections and modified labels will be removed.',
+    'diagram.checkpointSaved': 'Checkpoint saved successfully',
+    'diagram.checkpointRestored': 'Checkpoint restored successfully',
+    'diagram.checkpointSaveError': 'Error saving checkpoint',
+    'diagram.checkpointRestoreError': 'Error restoring checkpoint',
+    'diagram.noCheckpoint': 'No checkpoint found',
     
     // VM Detail
     'vm.back': 'Back to diagram',
