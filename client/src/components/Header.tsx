@@ -13,7 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -21,14 +21,75 @@ export function Header() {
   const { isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [showTitle, setShowTitle] = useState(true);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+
+  // Check if title would wrap to two lines and hide it if so
+  useEffect(() => {
+    const checkTitleWidth = () => {
+      // Only check on desktop (sm and up)
+      if (window.innerWidth < 640) {
+        setShowTitle(false);
+        return;
+      }
+
+      if (!titleRef.current || !containerRef.current) return;
+
+      const titleElement = titleRef.current;
+      const containerElement = containerRef.current;
+      
+      // Get navigation buttons container to calculate available space
+      const navWidth = navRef.current?.offsetWidth || 0;
+      
+      // Calculate available space for title
+      const containerWidth = containerElement.offsetWidth;
+      const logoWidth = 40; // h-10 = 40px
+      const gap = 12; // gap-3 = 12px
+      const padding = 16; // px-4 = 16px on each side
+      const availableWidth = containerWidth - logoWidth - gap - navWidth - (padding * 2) - 20; // 20px buffer
+      
+      // Measure title width by temporarily making it visible and measuring
+      const originalDisplay = titleElement.style.display;
+      const originalVisibility = titleElement.style.visibility;
+      const originalPosition = titleElement.style.position;
+      const originalWhiteSpace = titleElement.style.whiteSpace;
+      
+      titleElement.style.display = 'block';
+      titleElement.style.visibility = 'hidden';
+      titleElement.style.position = 'absolute';
+      titleElement.style.whiteSpace = 'nowrap';
+      
+      const titleWidth = titleElement.scrollWidth;
+      
+      // Reset styles
+      titleElement.style.display = originalDisplay;
+      titleElement.style.visibility = originalVisibility;
+      titleElement.style.position = originalPosition;
+      titleElement.style.whiteSpace = originalWhiteSpace;
+      
+      // Hide title if it would overflow
+      setShowTitle(titleWidth <= availableWidth);
+    };
+
+    // Use a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(checkTitleWidth, 100);
+    window.addEventListener('resize', checkTitleWidth);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', checkTitleWidth);
+    };
+  }, [isAuthenticated, language, theme]); // Re-check when these change as they affect nav width
 
   return (
     <header className="bg-white dark:bg-slate-950 border-b border-gray-200 dark:border-slate-800 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
+      <div ref={containerRef} className="max-w-7xl mx-auto px-4 py-6 flex items-center justify-between">
         <Link href="/">
           <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
             {APP_LOGO && (
-              <div className="bg-white p-1.5 rounded">
+              <div className="bg-white p-1.5 rounded flex-shrink-0">
                 <img
                   src={APP_LOGO}
                   alt={APP_TITLE}
@@ -36,12 +97,19 @@ export function Header() {
                 />
               </div>
             )}
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white hidden sm:block">{APP_TITLE}</h1>
+            <h1 
+              ref={titleRef}
+              className={`text-2xl font-bold text-gray-900 dark:text-white hidden sm:block whitespace-nowrap ${
+                showTitle ? '' : 'hidden'
+              }`}
+            >
+              {APP_TITLE}
+            </h1>
           </div>
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden sm:flex items-center gap-2">
+        <div ref={navRef} className="hidden sm:flex items-center gap-2">
           {isAuthenticated ? (
             <Link href="/system-config">
               <Button variant="ghost" size="sm" className="gap-2">

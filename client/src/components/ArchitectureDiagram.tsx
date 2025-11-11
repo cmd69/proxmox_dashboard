@@ -29,8 +29,9 @@ import { VM } from '@/data/architecture';
 import { useArchitecture } from '@/contexts/ArchitectureContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile } from '@/hooks/useMobile';
 import { Link, useLocation } from 'wouter';
-import { HardDrive, Server, Zap, Database, Cloud, Layers, RotateCcw, Save, ChevronDown, Eye, EyeOff, ChevronRight, ChevronUp, Minimize2, Maximize2, GripVertical } from 'lucide-react';
+import { HardDrive, Server, Zap, Database, Cloud, Layers, RotateCcw, Save, ChevronDown, Eye, EyeOff, ChevronRight, ChevronUp, Minimize2, Maximize2, GripVertical, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { diagramStorage, DiagramCheckpoint } from '@/services/diagramStorage';
@@ -501,6 +502,7 @@ export const ArchitectureDiagram: React.FC = () => {
   const { architecture } = useArchitecture();
   const { t } = useLanguage();
   const { isAuthenticated } = useAuth();
+  const isMobile = useIsMobile();
   // Initialize with all VMs expanded (services visible by default)
   const [expandedVMs, setExpandedVMs] = useState<Set<string>>(
     () => new Set(architecture.vms.map(vm => vm.id))
@@ -508,19 +510,80 @@ export const ArchitectureDiagram: React.FC = () => {
   const [isVMPanelMinimized, setIsVMPanelMinimized] = useState(false);
   const [isCheckpointPanelMinimized, setIsCheckpointPanelMinimized] = useState(false);
   
-  const PANEL_MARGIN = 16;
-  const PANEL_WIDTH = 280;
+  // Responsive panel dimensions
+  const PANEL_MARGIN = isMobile ? 8 : 16;
   const DEFAULT_PANEL_HEIGHT = 320;
   
-  // Panel positions state
-  const [vmPanelPosition, setVmPanelPosition] = useState({ x: PANEL_MARGIN, y: PANEL_MARGIN });
-  const [checkpointPanelPosition, setCheckpointPanelPosition] = useState({ x: PANEL_MARGIN, y: 240 });
+  // Calculate panel width based on screen size
+  const [panelWidth, setPanelWidth] = useState(280);
+  useEffect(() => {
+    if (isMobile && typeof window !== 'undefined') {
+      setPanelWidth(Math.min(280, window.innerWidth - 16));
+    } else {
+      setPanelWidth(280);
+    }
+  }, [isMobile]);
+  
+  // Panel positions state - responsive initial positions
+  const getInitialVMPosition = () => {
+    if (isMobile) {
+      return { x: PANEL_MARGIN, y: PANEL_MARGIN };
+    }
+    return { x: PANEL_MARGIN, y: PANEL_MARGIN };
+  };
+  
+  // Calculate minimized panel height (compact header only)
+  const MINIMIZED_PANEL_HEIGHT = 48; // Compact header height
+  const MINIMIZED_PANEL_WIDTH = 64; // Narrow width when minimized (more square-like)
+  
+  const getInitialCheckpointPosition = () => {
+    if (isMobile) {
+      // On mobile, stack panels vertically when minimized
+      const vmMinimizedHeight = isVMPanelMinimized ? MINIMIZED_PANEL_HEIGHT : DEFAULT_PANEL_HEIGHT;
+      const gap = (isVMPanelMinimized && isCheckpointPanelMinimized) ? 4 : 8;
+      return { x: PANEL_MARGIN, y: vmMinimizedHeight + PANEL_MARGIN + gap };
+    }
+    return { x: PANEL_MARGIN, y: 240 };
+  };
+  
+  const [vmPanelPosition, setVmPanelPosition] = useState(getInitialVMPosition);
+  const [checkpointPanelPosition, setCheckpointPanelPosition] = useState(getInitialCheckpointPosition);
   const [isDraggingVM, setIsDraggingVM] = useState(false);
   const [isDraggingCheckpoint, setIsDraggingCheckpoint] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const vmPanelRef = useRef<HTMLDivElement | null>(null);
   const checkpointPanelRef = useRef<HTMLDivElement | null>(null);
   const lastDraggedPanelRef = useRef<'vm' | 'checkpoint' | null>(null);
+  
+  // Update positions when mobile state or minimized state changes
+  // Only adjust checkpoint position, don't move VM panel to avoid moving the diagram
+  useEffect(() => {
+    // Use requestAnimationFrame to ensure DOM has updated with new heights
+    requestAnimationFrame(() => {
+      const vmElement = vmPanelRef.current;
+      if (!vmElement) return;
+      
+      // Calculate VM panel height
+      const vmHeight = vmElement.offsetHeight || (isVMPanelMinimized ? MINIMIZED_PANEL_HEIGHT : DEFAULT_PANEL_HEIGHT);
+      const gap = (isVMPanelMinimized && isCheckpointPanelMinimized) ? 4 : 8;
+      
+      if (isMobile) {
+        // On mobile, only adjust checkpoint position relative to current VM position
+        // Don't reset VM position to avoid moving the diagram
+        setCheckpointPanelPosition((prev) => ({
+          x: prev.x,
+          y: vmPanelPosition.y + vmHeight + gap
+        }));
+      } else {
+        // On desktop, adjust checkpoint position based on VM panel height
+        // This ensures checkpoint moves down when VM panel expands
+        setCheckpointPanelPosition((prev) => ({
+          x: prev.x,
+          y: vmPanelPosition.y + vmHeight + gap
+        }));
+      }
+    });
+  }, [isMobile, isVMPanelMinimized, isCheckpointPanelMinimized, vmPanelPosition.y]);
   
   const positionsAreEqual = (a: { x: number; y: number }, b: { x: number; y: number }) =>
     Math.abs(a.x - b.x) < 0.5 && Math.abs(a.y - b.y) < 0.5;
@@ -645,38 +708,73 @@ export const ArchitectureDiagram: React.FC = () => {
     }
   }, []);
 
+  // Unified drag handler for both mouse and touch
+  const handleVMPanelStart = useCallback((clientX: number, clientY: number, element: HTMLElement) => {
+    if (isMobile && !isVMPanelMinimized) {
+      // On mobile, only allow dragging when minimized or via header
+      return;
+    }
+    lastDraggedPanelRef.current = 'vm';
+    setIsDraggingVM(true);
+    const rect = element.getBoundingClientRect();
+    setDragOffset({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    });
+  }, [isMobile, isVMPanelMinimized]);
+  
   // Drag handlers for VM panel
   const handleVMPanelMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
     if (grabArea && grabArea.contains(e.target as Node)) {
       e.preventDefault();
-      lastDraggedPanelRef.current = 'vm';
-      setIsDraggingVM(true);
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
+      handleVMPanelStart(e.clientX, e.clientY, e.currentTarget as HTMLElement);
     }
-  }, []);
+  }, [handleVMPanelStart]);
+  
+  const handleVMPanelTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
+    if (grabArea && grabArea.contains(e.target as Node)) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleVMPanelStart(touch.clientX, touch.clientY, e.currentTarget as HTMLElement);
+    }
+  }, [handleVMPanelStart]);
 
-  const handleVMPanelMouseMove = useCallback(
-    (e: MouseEvent) => {
+  const handleVMPanelMove = useCallback(
+    (clientX: number, clientY: number) => {
       if (!isDraggingVM) return;
       const basePosition = {
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y,
+        x: clientX - dragOffset.x,
+        y: clientY - dragOffset.y,
       };
       const vmSize = {
-        width: vmPanelRef.current?.offsetWidth ?? PANEL_WIDTH,
+        width: vmPanelRef.current?.offsetWidth ?? (isVMPanelMinimized ? MINIMIZED_PANEL_WIDTH : panelWidth),
         height: vmPanelRef.current?.offsetHeight ?? DEFAULT_PANEL_HEIGHT,
       };
       const newPosition = clampPanelPosition(basePosition, vmSize);
       setVmPanelPosition(newPosition);
       savePanelPosition('vm', newPosition);
     },
-    [isDraggingVM, dragOffset, clampPanelPosition, savePanelPosition, PANEL_WIDTH, DEFAULT_PANEL_HEIGHT]
+    [isDraggingVM, dragOffset, clampPanelPosition, savePanelPosition, panelWidth, DEFAULT_PANEL_HEIGHT, isVMPanelMinimized]
+  );
+  
+  const handleVMPanelMouseMove = useCallback(
+    (e: MouseEvent) => {
+      handleVMPanelMove(e.clientX, e.clientY);
+    },
+    [handleVMPanelMove]
+  );
+  
+  const handleVMPanelTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        handleVMPanelMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    },
+    [handleVMPanelMove]
   );
 
   const handleVMPanelMouseUp = useCallback(() => {
@@ -685,38 +783,73 @@ export const ArchitectureDiagram: React.FC = () => {
     }
   }, [isDraggingVM]);
 
+  // Unified drag handler for checkpoint panel
+  const handleCheckpointPanelStart = useCallback((clientX: number, clientY: number, element: HTMLElement) => {
+    if (isMobile && !isCheckpointPanelMinimized) {
+      // On mobile, only allow dragging when minimized or via header
+      return;
+    }
+    lastDraggedPanelRef.current = 'checkpoint';
+    setIsDraggingCheckpoint(true);
+    const rect = element.getBoundingClientRect();
+    setDragOffset({
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    });
+  }, [isMobile, isCheckpointPanelMinimized]);
+  
   // Drag handlers for Checkpoint panel
   const handleCheckpointPanelMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('button')) return;
     const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
     if (grabArea && grabArea.contains(e.target as Node)) {
       e.preventDefault();
-      lastDraggedPanelRef.current = 'checkpoint';
-      setIsDraggingCheckpoint(true);
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
+      handleCheckpointPanelStart(e.clientX, e.clientY, e.currentTarget as HTMLElement);
     }
-  }, []);
+  }, [handleCheckpointPanelStart]);
+  
+  const handleCheckpointPanelTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const grabArea = (e.currentTarget as HTMLElement).querySelector('.cursor-grab');
+    if (grabArea && grabArea.contains(e.target as Node)) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      handleCheckpointPanelStart(touch.clientX, touch.clientY, e.currentTarget as HTMLElement);
+    }
+  }, [handleCheckpointPanelStart]);
 
-  const handleCheckpointPanelMouseMove = useCallback(
-    (e: MouseEvent) => {
+  const handleCheckpointPanelMove = useCallback(
+    (clientX: number, clientY: number) => {
       if (!isDraggingCheckpoint) return;
       const basePosition = {
-        x: e.clientX - dragOffset.x,
-        y: e.clientY - dragOffset.y,
+        x: clientX - dragOffset.x,
+        y: clientY - dragOffset.y,
       };
       const checkpointSize = {
-        width: checkpointPanelRef.current?.offsetWidth ?? PANEL_WIDTH,
+        width: checkpointPanelRef.current?.offsetWidth ?? (isCheckpointPanelMinimized ? MINIMIZED_PANEL_WIDTH : panelWidth),
         height: checkpointPanelRef.current?.offsetHeight ?? DEFAULT_PANEL_HEIGHT,
       };
       const newPosition = clampPanelPosition(basePosition, checkpointSize);
       setCheckpointPanelPosition(newPosition);
       savePanelPosition('checkpoint', newPosition);
     },
-    [isDraggingCheckpoint, dragOffset, clampPanelPosition, savePanelPosition, PANEL_WIDTH, DEFAULT_PANEL_HEIGHT]
+    [isDraggingCheckpoint, dragOffset, clampPanelPosition, savePanelPosition, panelWidth, DEFAULT_PANEL_HEIGHT, isCheckpointPanelMinimized]
+  );
+  
+  const handleCheckpointPanelMouseMove = useCallback(
+    (e: MouseEvent) => {
+      handleCheckpointPanelMove(e.clientX, e.clientY);
+    },
+    [handleCheckpointPanelMove]
+  );
+  
+  const handleCheckpointPanelTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        handleCheckpointPanelMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    },
+    [handleCheckpointPanelMove]
   );
 
   const handleCheckpointPanelMouseUp = useCallback(() => {
@@ -725,28 +858,36 @@ export const ArchitectureDiagram: React.FC = () => {
     }
   }, [isDraggingCheckpoint]);
 
-  // Global mouse event listeners for dragging
+  // Global mouse and touch event listeners for dragging
   useEffect(() => {
     if (isDraggingVM) {
       window.addEventListener('mousemove', handleVMPanelMouseMove);
       window.addEventListener('mouseup', handleVMPanelMouseUp);
+      window.addEventListener('touchmove', handleVMPanelTouchMove, { passive: false });
+      window.addEventListener('touchend', handleVMPanelMouseUp);
       return () => {
         window.removeEventListener('mousemove', handleVMPanelMouseMove);
         window.removeEventListener('mouseup', handleVMPanelMouseUp);
+        window.removeEventListener('touchmove', handleVMPanelTouchMove);
+        window.removeEventListener('touchend', handleVMPanelMouseUp);
       };
     }
-  }, [isDraggingVM, handleVMPanelMouseMove, handleVMPanelMouseUp]);
+  }, [isDraggingVM, handleVMPanelMouseMove, handleVMPanelTouchMove, handleVMPanelMouseUp]);
 
   useEffect(() => {
     if (isDraggingCheckpoint) {
       window.addEventListener('mousemove', handleCheckpointPanelMouseMove);
       window.addEventListener('mouseup', handleCheckpointPanelMouseUp);
+      window.addEventListener('touchmove', handleCheckpointPanelTouchMove, { passive: false });
+      window.addEventListener('touchend', handleCheckpointPanelMouseUp);
       return () => {
         window.removeEventListener('mousemove', handleCheckpointPanelMouseMove);
         window.removeEventListener('mouseup', handleCheckpointPanelMouseUp);
+        window.removeEventListener('touchmove', handleCheckpointPanelTouchMove);
+        window.removeEventListener('touchend', handleCheckpointPanelMouseUp);
       };
     }
-  }, [isDraggingCheckpoint, handleCheckpointPanelMouseMove, handleCheckpointPanelMouseUp]);
+  }, [isDraggingCheckpoint, handleCheckpointPanelMouseMove, handleCheckpointPanelTouchMove, handleCheckpointPanelMouseUp]);
   
   useEffect(() => {
     const vmElement = vmPanelRef.current;
@@ -756,11 +897,11 @@ export const ArchitectureDiagram: React.FC = () => {
     }
     
     const vmSize = {
-      width: vmElement.offsetWidth || PANEL_WIDTH,
+      width: vmElement.offsetWidth || (isVMPanelMinimized ? MINIMIZED_PANEL_WIDTH : panelWidth),
       height: Math.max(vmElement.offsetHeight || DEFAULT_PANEL_HEIGHT, 1),
     };
     const checkpointSize = {
-      width: checkpointElement.offsetWidth || PANEL_WIDTH,
+      width: checkpointElement.offsetWidth || (isCheckpointPanelMinimized ? MINIMIZED_PANEL_WIDTH : panelWidth),
       height: Math.max(checkpointElement.offsetHeight || DEFAULT_PANEL_HEIGHT, 1),
     };
     
@@ -831,8 +972,10 @@ export const ArchitectureDiagram: React.FC = () => {
     isDraggingCheckpoint,
     resolveOverlapForPanel,
     savePanelPosition,
-    PANEL_WIDTH,
+    panelWidth,
     DEFAULT_PANEL_HEIGHT,
+    isVMPanelMinimized,
+    isCheckpointPanelMinimized,
   ]);
   
   // Ensure services array exists (fallback for old data)
@@ -2132,48 +2275,59 @@ export const ArchitectureDiagram: React.FC = () => {
         {/* Panel de control de VMs - Draggable */}
         <div
           ref={vmPanelRef}
-          className="absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10"
+          className={`absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 ${
+            isMobile ? 'touch-none' : ''
+          }`}
           style={{
-            width: '280px',
+            width: isVMPanelMinimized ? `${MINIMIZED_PANEL_WIDTH}px` : `${panelWidth}px`,
+            maxWidth: isVMPanelMinimized ? `${MINIMIZED_PANEL_WIDTH}px` : (isMobile ? 'calc(100vw - 16px)' : '280px'),
             left: `${vmPanelPosition.x}px`,
             top: `${vmPanelPosition.y}px`,
-            cursor: isDraggingVM ? 'grabbing' : 'grab',
+            cursor: isMobile ? 'default' : (isDraggingVM ? 'grabbing' : 'grab'),
           }}
           onMouseDown={handleVMPanelMouseDown}
+          onTouchStart={handleVMPanelTouchStart}
         >
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 flex-1 cursor-grab active:cursor-grabbing">
-                <GripVertical className="w-4 h-4 text-gray-400" />
-                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
-                  {t('diagram.vmControl')}
-                </h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleToggleAllServices}
-                  className="h-7 w-7 p-0"
-                  title={architecture.vms.every(vm => expandedVMs.has(vm.id)) 
-                    ? t('diagram.hideAllServices')
-                    : t('diagram.showAllServices')}
-                >
-                  {architecture.vms.every(vm => expandedVMs.has(vm.id)) ? (
-                    <EyeOff className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  ) : (
-                    <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                  )}
-                </Button>
+          <div className={isVMPanelMinimized ? "p-1.5" : "p-4"}>
+            <div className={`flex items-center ${isVMPanelMinimized ? 'justify-center' : 'justify-between'} ${isVMPanelMinimized ? '' : 'mb-4'}`}>
+              {!isVMPanelMinimized && (
+                <div className={`flex items-center gap-2 flex-1 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}>
+                  {!isMobile && <GripVertical className="w-4 h-4 text-gray-400" />}
+                  <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+                    {t('diagram.vmControl')}
+                  </h3>
+                </div>
+              )}
+              <div className={`flex items-center ${isVMPanelMinimized ? 'gap-1.5' : 'gap-1'}`}>
+                {isVMPanelMinimized && (
+                  <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                )}
+                {!isVMPanelMinimized && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleAllServices}
+                    className="h-7 w-7 p-0"
+                    title={architecture.vms.every(vm => expandedVMs.has(vm.id)) 
+                      ? t('diagram.hideAllServices')
+                      : t('diagram.showAllServices')}
+                  >
+                    {architecture.vms.every(vm => expandedVMs.has(vm.id)) ? (
+                      <EyeOff className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    ) : (
+                      <Eye className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    )}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsVMPanelMinimized(!isVMPanelMinimized)}
-                  className="h-7 w-7 p-0"
+                  className={`${isVMPanelMinimized ? 'h-6 w-6' : 'h-7 w-7'} p-0`}
                   title={isVMPanelMinimized ? 'Maximizar' : 'Minimizar'}
                 >
                   {isVMPanelMinimized ? (
-                    <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <Maximize2 className={`${isVMPanelMinimized ? 'w-3 h-3' : 'w-4 h-4'} text-gray-600 dark:text-gray-400`} />
                   ) : (
                     <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                   )}
@@ -2181,7 +2335,7 @@ export const ArchitectureDiagram: React.FC = () => {
               </div>
             </div>
             {!isVMPanelMinimized && (
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              <div className={`space-y-2 ${isMobile ? 'max-h-[40vh]' : 'max-h-[60vh]'} overflow-y-auto`}>
                 {architecture.vms.map((vm) => {
                   const isExpanded = expandedVMs.has(vm.id);
                   return (
@@ -2224,36 +2378,47 @@ export const ArchitectureDiagram: React.FC = () => {
         {/* Panel de Checkpoint - Draggable */}
         <div
           ref={checkpointPanelRef}
-          className="absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10"
+          className={`absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 ${
+            isMobile ? 'touch-none' : ''
+          }`}
           style={{
-            width: '280px',
+            width: isCheckpointPanelMinimized ? `${MINIMIZED_PANEL_WIDTH}px` : `${panelWidth}px`,
+            maxWidth: isCheckpointPanelMinimized ? `${MINIMIZED_PANEL_WIDTH}px` : (isMobile ? 'calc(100vw - 16px)' : '280px'),
             left: `${checkpointPanelPosition.x}px`,
             top: `${checkpointPanelPosition.y}px`,
-            cursor: isDraggingCheckpoint ? 'grabbing' : 'grab',
+            cursor: isMobile ? 'default' : (isDraggingCheckpoint ? 'grabbing' : 'grab'),
           }}
           onMouseDown={handleCheckpointPanelMouseDown}
+          onTouchStart={handleCheckpointPanelTouchStart}
         >
-          <div className="p-3">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 flex-1 cursor-grab active:cursor-grabbing">
-                <GripVertical className="w-4 h-4 text-gray-400" />
-                <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
-                  {t('diagram.controls') || 'Controles'}
-                </h3>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsCheckpointPanelMinimized(!isCheckpointPanelMinimized)}
-                className="h-7 w-7 p-0"
-                title={isCheckpointPanelMinimized ? 'Maximizar' : 'Minimizar'}
-              >
-                {isCheckpointPanelMinimized ? (
-                  <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                ) : (
-                  <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+          <div className={isCheckpointPanelMinimized ? "p-1.5" : "p-3"}>
+            <div className={`flex items-center ${isCheckpointPanelMinimized ? 'justify-center' : 'justify-between'} ${isCheckpointPanelMinimized ? '' : 'mb-3'}`}>
+              {!isCheckpointPanelMinimized && (
+                <div className={`flex items-center gap-2 flex-1 ${isMobile ? '' : 'cursor-grab active:cursor-grabbing'}`}>
+                  {!isMobile && <GripVertical className="w-4 h-4 text-gray-400" />}
+                  <h3 className="font-semibold text-sm text-gray-900 dark:text-white">
+                    {t('diagram.controls') || 'Controles'}
+                  </h3>
+                </div>
+              )}
+              <div className={`flex items-center ${isCheckpointPanelMinimized ? 'gap-1.5' : 'gap-0'}`}>
+                {isCheckpointPanelMinimized && (
+                  <Settings className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                 )}
-              </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCheckpointPanelMinimized(!isCheckpointPanelMinimized)}
+                  className={`${isCheckpointPanelMinimized ? 'h-6 w-6' : 'h-7 w-7'} p-0`}
+                  title={isCheckpointPanelMinimized ? 'Maximizar' : 'Minimizar'}
+                >
+                  {isCheckpointPanelMinimized ? (
+                    <Maximize2 className={`${isCheckpointPanelMinimized ? 'w-3 h-3' : 'w-4 h-4'} text-gray-600 dark:text-gray-400`} />
+                  ) : (
+                    <Minimize2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  )}
+                </Button>
+              </div>
             </div>
             {!isCheckpointPanelMinimized && (
               <>
