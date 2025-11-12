@@ -2244,7 +2244,7 @@ export const ArchitectureDiagram: React.FC = () => {
   };
 
   return (
-    <div className="w-full h-full" style={{ minHeight: 0, position: 'relative' }}>
+    <div className="w-full h-full" style={{ minHeight: 0, position: 'relative', overflow: 'hidden', isolation: 'isolate' }}>
       <ReactFlow 
         nodes={flowNodes} 
         edges={flowEdges} 
@@ -2255,6 +2255,8 @@ export const ArchitectureDiagram: React.FC = () => {
         onEdgeDoubleClick={handleEdgeDoubleClick}
         onInit={onInit}
         fitView={false}
+        fitViewOnInit={false}
+        fitViewOnResize={false}
         fitViewOptions={{ padding: 0.1, maxZoom: 1.2 }}
         minZoom={0.3}
         maxZoom={1.5}
@@ -2267,6 +2269,7 @@ export const ArchitectureDiagram: React.FC = () => {
         connectionMode="loose"
         elementsSelectable={true}
         selectNodesOnDrag={false}
+        preventScrolling={false}
       >
         <Background color="#aaa" gap={16} />
         <Controls />
@@ -2275,7 +2278,7 @@ export const ArchitectureDiagram: React.FC = () => {
         {/* Panel de control de VMs - Draggable */}
         <div
           ref={vmPanelRef}
-          className={`absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 ${
+          className={`absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 pointer-events-auto ${
             isMobile ? 'touch-none' : ''
           }`}
           style={{
@@ -2284,6 +2287,8 @@ export const ArchitectureDiagram: React.FC = () => {
             left: `${vmPanelPosition.x}px`,
             top: `${vmPanelPosition.y}px`,
             cursor: isMobile ? 'default' : (isDraggingVM ? 'grabbing' : 'grab'),
+            pointerEvents: 'auto',
+            willChange: 'transform',
           }}
           onMouseDown={handleVMPanelMouseDown}
           onTouchStart={handleVMPanelTouchStart}
@@ -2378,7 +2383,7 @@ export const ArchitectureDiagram: React.FC = () => {
         {/* Panel de Checkpoint - Draggable */}
         <div
           ref={checkpointPanelRef}
-          className={`absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 ${
+          className={`absolute bg-white dark:bg-slate-800 rounded-lg shadow-lg z-10 pointer-events-auto ${
             isMobile ? 'touch-none' : ''
           }`}
           style={{
@@ -2387,6 +2392,8 @@ export const ArchitectureDiagram: React.FC = () => {
             left: `${checkpointPanelPosition.x}px`,
             top: `${checkpointPanelPosition.y}px`,
             cursor: isMobile ? 'default' : (isDraggingCheckpoint ? 'grabbing' : 'grab'),
+            pointerEvents: 'auto',
+            willChange: 'transform',
           }}
           onMouseDown={handleCheckpointPanelMouseDown}
           onTouchStart={handleCheckpointPanelTouchStart}
