@@ -509,11 +509,21 @@ export const ArchitectureDiagram: React.FC = () => {
   );
   const [isVMPanelMinimized, setIsVMPanelMinimized] = useState(false);
   const [isCheckpointPanelMinimized, setIsCheckpointPanelMinimized] = useState(false);
-  
+
+  // Collapse panels on mobile on first load
+  const initialMobileRef = useRef(true);
+  useEffect(() => {
+    if (initialMobileRef.current && isMobile) {
+      setIsVMPanelMinimized(true);
+      setIsCheckpointPanelMinimized(true);
+      initialMobileRef.current = false;
+    }
+  }, [isMobile]);
+
   // Responsive panel dimensions
   const PANEL_MARGIN = isMobile ? 8 : 16;
   const DEFAULT_PANEL_HEIGHT = 320;
-  
+
   // Calculate panel width based on screen size
   const [panelWidth, setPanelWidth] = useState(280);
   useEffect(() => {
@@ -2212,19 +2222,23 @@ export const ArchitectureDiagram: React.FC = () => {
 
   // Internal component to handle viewport restoration from checkpoint only (no auto-fit)
   const AutoFitView: React.FC = () => {
-    const { setViewport } = useReactFlow();
+    const { setViewport, fitView } = useReactFlow();
     const hasRestoredViewport = useRef(false);
-    
+
     useEffect(() => {
       const restoreViewportFromCheckpoint = async () => {
         if (hasRestoredViewport.current) return;
-        
+
         // Wait a bit for ReactFlow to be ready
         await new Promise(resolve => setTimeout(resolve, 100));
-        
+
         try {
           const checkpoint = await diagramStorage.loadCheckpoint();
-          if (checkpoint && checkpoint.viewport) {
+          if (isMobile) {
+            // On mobile, always fit the diagram to the viewport
+            fitView({ padding: 0.15, maxZoom: 0.6, duration: 0 });
+            hasRestoredViewport.current = true;
+          } else if (checkpoint && checkpoint.viewport) {
             console.log('📍 Restoring viewport from checkpoint:', checkpoint.viewport);
             setViewport(
               { x: checkpoint.viewport.x, y: checkpoint.viewport.y },
@@ -2238,7 +2252,7 @@ export const ArchitectureDiagram: React.FC = () => {
       };
 
       restoreViewportFromCheckpoint();
-    }, [setViewport]);
+    }, [setViewport, fitView]);
 
     return null;
   };
@@ -2260,7 +2274,7 @@ export const ArchitectureDiagram: React.FC = () => {
         fitViewOptions={{ padding: 0.1, maxZoom: 1.2 }}
         minZoom={0.3}
         maxZoom={1.5}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         connectionLineType="smoothstep"
         defaultEdgeOptions={{
           animated: true,

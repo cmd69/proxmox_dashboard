@@ -29,7 +29,6 @@ EXPOSE 3000
 
 # Set environment variables
 ENV NODE_ENV=development
-ENV PORT=3000
 
 # Use entrypoint to ensure dependencies are installed
 ENTRYPOINT ["docker-entrypoint.sh"]
@@ -86,7 +85,6 @@ EXPOSE 3000
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
 
 # Start the application
 CMD ["node", "dist/index.js"]
