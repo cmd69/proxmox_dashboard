@@ -1,0 +1,48 @@
+---
+description: Entorno de desarrollo — proxmox_dashboard
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Entorno de desarrollo — proxmox_dashboard
+
+Stack: **TypeScript + Vite + React + Express**. Hot-reload via Vite dev server.
+
+## Compose
+
+`docker-compose.yml` es el compose de **desarrollo** (hot-reload, monta código).
+`docker-compose.prod.yml` es el compose de **producción** (build estático).
+
+```bash
+# Desarrollo
+docker compose up -d
+docker compose logs -f
+
+# Producción
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## Comandos en contenedor
+
+Todos los comandos que requieren librerías se ejecutan **dentro del contenedor**:
+
+```bash
+docker compose exec architecture_dashboard pnpm install <paquete>
+docker compose exec architecture_dashboard pnpm run build
+docker compose exec architecture_dashboard sh
+```
+
+**NUNCA ejecutar `pnpm`, `npm`, `npx`, `node` u otros comandos directamente en el host.**
+
+## Convención de commits
+
+Formato obligatorio:
+
+```
+[NN] TYPE(scope): descripción breve
+```
+
+- `[NN]` secuencial por repo (último: `[07]`, siguiente: `[08]`)
+- Tipos: `FEAT` `FIX` `DOCS` `REFACTOR` `CHORE` `TEST` `CI` `INFRA` `STYLE`
+- Scope en minúsculas: `(ui)`, `(docker)`, `(api)`, `(auth)`
+- Descripción en imperativo: "añadir", "corregir", "actualizar"
