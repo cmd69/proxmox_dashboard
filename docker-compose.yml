@@ -1,47 +1,33 @@
 services:
-  architecture_dashboard:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
-      target: development  # Usar stage de desarrollo
-    container_name: architecture_dashboard
+      target: production
+    container_name: proxmox_dashboard
     restart: unless-stopped
     env_file:
       - .env
     ports:
-      - "${PORT:-3000}:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     volumes:
-      # Montar código fuente para hot-reload
-      - .:/app
-      # Usar volumen nombrado para node_modules (preserva las dependencias del contenedor)
-      - node_modules:/app/node_modules
-      - dist:/app/dist
-      # Volumen persistente para datos del servidor
-      - dashboard_data:/app/data
+      - dashboard-data:/app/data
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
+      - NODE_ENV=production
       - PORT=${PORT:-3000}
       - VITE_APP_TITLE=${VITE_APP_TITLE:-Architecture Dashboard}
-      # AUTH_USERNAME and AUTH_PASSWORD must be set in .env file (no defaults for security)
-      - AUTH_USERNAME=${AUTH_USERNAME}
-      - AUTH_PASSWORD=${AUTH_PASSWORD}
     networks:
-      - demo
+      - proxmox_dashboard-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${PORT:-3000}"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    command: pnpm dev
 
 volumes:
-  node_modules:
-  dist:
-  dashboard_data:
+  dashboard-data:
 
 networks:
-  demo:
+  proxmox_dashboard-network:
     driver: bridge
-    name: demo
-

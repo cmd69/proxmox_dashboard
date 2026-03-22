@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: proxmox_dashboard-dev
+    env_file:
+      - .env
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - dist:/app/dist
+      - dashboard-data-dev:/app/data
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-3000}
+      - VITE_APP_TITLE=${VITE_APP_TITLE:-Architecture Dashboard}
+      - AUTH_USERNAME=${AUTH_USERNAME}
+      - AUTH_PASSWORD=${AUTH_PASSWORD}
+    networks:
+      - proxmox_dashboard-network-dev
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    command: pnpm dev
+
+volumes:
+  node_modules:
+  dist:
+  dashboard-data-dev:
+
+networks:
+  proxmox_dashboard-network-dev:
+    driver: bridge
